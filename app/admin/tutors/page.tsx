@@ -12,6 +12,9 @@ import { AirbnbCard } from "@/components/ui/airbnb-card"
 import { BadgeCheck, X, Eye, FileText, Mail, Phone, MapPin, DollarSign, Star } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+// Disable static generation for this page
+export const dynamic = 'force-dynamic'
+
 export default function AdminTutorsPage() {
   const { user, isLoading: authLoading } = useAuth()
   const { showToast } = useNotification()

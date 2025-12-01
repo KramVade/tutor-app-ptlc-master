@@ -27,6 +27,9 @@ import {
 import { cn } from "@/lib/utils"
 import { getAllReports, updateReportStatus, type Report } from "@/firebase/reports"
 
+// Disable static generation for this page
+export const dynamic = 'force-dynamic'
+
 export default function AdminModerationPage() {
   const { user, isLoading: authLoading } = useAuth()
   const { showToast } = useNotification()

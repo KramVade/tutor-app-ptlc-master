@@ -13,6 +13,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Users, GraduationCap, Eye, Mail, Phone, Calendar, X, Baby } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+// Disable static generation for this page
+export const dynamic = 'force-dynamic'
+
 export default function AdminUsersPage() {
   const { user, isLoading: authLoading } = useAuth()
   const { showToast } = useNotification()

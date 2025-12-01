@@ -10,6 +10,9 @@ import { AirbnbCard } from "@/components/ui/airbnb-card"
 import { Users, GraduationCap, Calendar, DollarSign, ArrowRight } from "lucide-react"
 import Link from "next/link"
 
+// Disable static generation for this page
+export const dynamic = 'force-dynamic'
+
 interface DashboardStats {
   totalUsers: number
   activeTutors: number

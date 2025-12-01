@@ -6,6 +6,9 @@ import { useAuth } from "@/lib/context/auth-context"
 import { PageLayout } from "@/components/layout/page-layout"
 import { AirbnbCard } from "@/components/ui/airbnb-card"
 
+// Disable static generation for this page
+export const dynamic = 'force-dynamic'
+
 export default function AdminAnalyticsPage() {
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
