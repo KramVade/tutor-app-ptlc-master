@@ -1,19 +1,42 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/context/auth-context"
 import { PageLayout } from "@/components/layout/page-layout"
 import { StatsCard } from "@/components/admin/stats-card"
 import { ChartCard } from "@/components/admin/chart-card"
 import { AirbnbCard } from "@/components/ui/airbnb-card"
-import { mockAnalytics } from "@/lib/mock-data"
-import { Users, GraduationCap, Calendar, DollarSign, ArrowRight, AlertCircle } from "lucide-react"
+import { Users, GraduationCap, Calendar, DollarSign, ArrowRight } from "lucide-react"
 import Link from "next/link"
+
+interface DashboardStats {
+  totalUsers: number
+  activeTutors: number
+  totalParents: number
+  totalBookings: number
+  completedBookings: number
+  pendingBookings: number
+  revenue: number
+  bookingsTrend: Array<{ month: string; bookings: number }>
+  revenueTrend: Array<{ month: string; revenue: number }>
+}
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
+  const [stats, setStats] = useState<DashboardStats>({
+    totalUsers: 0,
+    activeTutors: 0,
+    totalParents: 0,
+    totalBookings: 0,
+    completedBookings: 0,
+    pendingBookings: 0,
+    revenue: 0,
+    bookingsTrend: [],
+    revenueTrend: []
+  })
+  const [isLoadingData, setIsLoadingData] = useState(true)
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "admin")) {
@@ -21,7 +44,109 @@ export default function AdminDashboard() {
     }
   }, [user, isLoading, router])
 
-  if (isLoading || !user) {
+  useEffect(() => {
+    if (user && user.role === "admin") {
+      loadDashboardData()
+    }
+  }, [user])
+
+  const loadDashboardData = async () => {
+    try {
+      setIsLoadingData(true)
+      console.log('📊 Loading admin dashboard data...')
+      
+      // Load all data from Firebase
+      const [
+        { getAllTutors },
+        { getAllParents },
+        { getAllBookings }
+      ] = await Promise.all([
+        import("@/firebase/tutors"),
+        import("@/firebase/parents"),
+        import("@/firebase/bookings")
+      ])
+
+      const [tutors, parents, bookings] = await Promise.all([
+        getAllTutors(),
+        getAllParents(),
+        getAllBookings()
+      ])
+
+      console.log('✅ Data loaded:', { tutors: tutors.length, parents: parents.length, bookings: bookings.length })
+
+      // Calculate stats
+      const activeTutors = tutors.filter((t: any) => t.available).length
+      const completedBookings = bookings.filter((b: any) => b.status === 'completed')
+      const pendingBookings = bookings.filter((b: any) => b.status === 'pending')
+      
+      // Calculate revenue from completed bookings
+      const totalRevenue = completedBookings.reduce((sum: number, b: any) => 
+        sum + (b.totalPrice || 0), 0
+      )
+
+      // Calculate monthly trends (last 6 months)
+      const monthlyData = calculateMonthlyTrends(bookings)
+
+      setStats({
+        totalUsers: tutors.length + parents.length,
+        activeTutors,
+        totalParents: parents.length,
+        totalBookings: bookings.length,
+        completedBookings: completedBookings.length,
+        pendingBookings: pendingBookings.length,
+        revenue: totalRevenue,
+        bookingsTrend: monthlyData.bookings,
+        revenueTrend: monthlyData.revenue
+      })
+    } catch (error) {
+      console.error('❌ Error loading admin dashboard data:', error)
+    } finally {
+      setIsLoadingData(false)
+    }
+  }
+
+  const calculateMonthlyTrends = (bookings: any[]) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const now = new Date()
+    const last6Months = []
+
+    // Get last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      last6Months.push({
+        month: months[date.getMonth()],
+        year: date.getFullYear(),
+        monthIndex: date.getMonth()
+      })
+    }
+
+    // Calculate bookings and revenue per month
+    const bookingsTrend = last6Months.map(({ month, year, monthIndex }) => {
+      const monthBookings = bookings.filter((b: any) => {
+        const bookingDate = new Date(b.date)
+        return bookingDate.getMonth() === monthIndex && 
+               bookingDate.getFullYear() === year
+      })
+      return { month, bookings: monthBookings.length }
+    })
+
+    const revenueTrend = last6Months.map(({ month, year, monthIndex }) => {
+      const monthBookings = bookings.filter((b: any) => {
+        const bookingDate = new Date(b.date)
+        return bookingDate.getMonth() === monthIndex && 
+               bookingDate.getFullYear() === year &&
+               b.status === 'completed'
+      })
+      const revenue = monthBookings.reduce((sum: number, b: any) => 
+        sum + (b.totalPrice || 0), 0
+      )
+      return { month, revenue }
+    })
+
+    return { bookings: bookingsTrend, revenue: revenueTrend }
+  }
+
+  if (isLoading || !user || isLoadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
@@ -41,30 +166,22 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatsCard
             title="Total Users"
-            value={mockAnalytics.totalUsers.toLocaleString()}
-            change={8}
-            trend="up"
+            value={stats.totalUsers.toLocaleString()}
             icon={<Users className="h-6 w-6 text-primary" />}
           />
           <StatsCard
             title="Active Tutors"
-            value={mockAnalytics.activeTutors}
-            change={12}
-            trend="up"
+            value={stats.activeTutors.toString()}
             icon={<GraduationCap className="h-6 w-6 text-primary" />}
           />
           <StatsCard
             title="Total Bookings"
-            value={mockAnalytics.totalBookings.toLocaleString()}
-            change={15}
-            trend="up"
+            value={stats.totalBookings.toLocaleString()}
             icon={<Calendar className="h-6 w-6 text-primary" />}
           />
           <StatsCard
             title="Revenue"
-            value={`$${(mockAnalytics.revenue / 1000).toFixed(0)}K`}
-            change={10}
-            trend="up"
+            value={`₱${stats.revenue.toLocaleString()}`}
             icon={<DollarSign className="h-6 w-6 text-primary" />}
           />
         </div>
@@ -74,7 +191,7 @@ export default function AdminDashboard() {
           <ChartCard
             title="Bookings Trend"
             subtitle="Monthly bookings over the past 6 months"
-            data={mockAnalytics.bookingsTrend}
+            data={stats.bookingsTrend}
             type="line"
             dataKey="bookings"
             xAxisKey="month"
@@ -82,7 +199,7 @@ export default function AdminDashboard() {
           <ChartCard
             title="Revenue Trend"
             subtitle="Monthly revenue over the past 6 months"
-            data={mockAnalytics.revenueTrend}
+            data={stats.revenueTrend}
             type="bar"
             dataKey="revenue"
             xAxisKey="month"
@@ -96,25 +213,25 @@ export default function AdminDashboard() {
             <AirbnbCard hoverable className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-warning/10 rounded-xl">
-                  <AlertCircle className="h-6 w-6 text-warning" />
+                  <Calendar className="h-6 w-6 text-warning" />
                 </div>
                 <div>
-                  <p className="font-semibold">Pending Verifications</p>
-                  <p className="text-sm text-muted-foreground">3 tutors awaiting review</p>
+                  <p className="font-semibold">Pending Bookings</p>
+                  <p className="text-sm text-muted-foreground">{stats.pendingBookings} awaiting confirmation</p>
                 </div>
               </div>
               <ArrowRight className="h-5 w-5 text-muted-foreground" />
             </AirbnbCard>
           </Link>
-          <Link href="/admin/moderation">
+          <Link href="/admin/users">
             <AirbnbCard hoverable className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-destructive/10 rounded-xl">
-                  <AlertCircle className="h-6 w-6 text-destructive" />
+                <div className="p-3 bg-primary/10 rounded-xl">
+                  <Users className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="font-semibold">Content Reports</p>
-                  <p className="text-sm text-muted-foreground">2 reports need attention</p>
+                  <p className="font-semibold">Total Parents</p>
+                  <p className="text-sm text-muted-foreground">{stats.totalParents} registered parents</p>
                 </div>
               </div>
               <ArrowRight className="h-5 w-5 text-muted-foreground" />
@@ -123,12 +240,12 @@ export default function AdminDashboard() {
           <Link href="/admin/analytics">
             <AirbnbCard hoverable className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-xl">
-                  <Calendar className="h-6 w-6 text-primary" />
+                <div className="p-3 bg-success/10 rounded-xl">
+                  <Calendar className="h-6 w-6 text-success" />
                 </div>
                 <div>
-                  <p className="font-semibold">View Analytics</p>
-                  <p className="text-sm text-muted-foreground">Detailed platform insights</p>
+                  <p className="font-semibold">Completed Sessions</p>
+                  <p className="text-sm text-muted-foreground">{stats.completedBookings} sessions completed</p>
                 </div>
               </div>
               <ArrowRight className="h-5 w-5 text-muted-foreground" />

@@ -3,11 +3,14 @@
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useAuth } from "@/lib/context/auth-context"
-import { useData } from "@/lib/context/data-context"
 import { PageLayout } from "@/components/layout/page-layout"
 import { AirbnbCard } from "@/components/ui/airbnb-card"
 import { AirbnbButton } from "@/components/ui/airbnb-button"
 import { BookingModal } from "@/components/booking/booking-modal"
+import { ReportModal } from "@/components/report/report-modal"
+import { ReviewModal } from "@/components/review/review-modal"
+import { ReviewList } from "@/components/review/review-list"
+import { RatingSummary } from "@/components/review/rating-summary"
 import {
   Star,
   MapPin,
@@ -19,20 +22,22 @@ import {
   Globe,
   ChevronLeft,
   Heart,
+  Flag,
 } from "lucide-react"
 import Link from "next/link"
 
 export default function TutorDetailPage() {
   const { user, isLoading: authLoading } = useAuth()
-  const { reviews } = useData()
   const router = useRouter()
   const params = useParams()
   const [showBookingModal, setShowBookingModal] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
+  const [showReviewModal, setShowReviewModal] = useState(false)
   const [isFavorite, setIsFavorite] = useState(false)
   const [tutor, setTutor] = useState<any>(null)
+  const [reviews, setReviews] = useState<any[]>([])
+  const [ratingStats, setRatingStats] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
-
-  const tutorReviews = reviews.filter((r) => r.tutorId === params.id)
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "parent")) {
@@ -43,8 +48,25 @@ export default function TutorDetailPage() {
   useEffect(() => {
     if (params.id) {
       loadTutor()
+      loadReviews()
     }
   }, [params.id])
+
+  const loadReviews = async () => {
+    try {
+      const { getReviewsByTutorId, getTutorReviewStats } = await import("@/firebase/reviews")
+      
+      const [reviewsData, stats] = await Promise.all([
+        getReviewsByTutorId(params.id as string),
+        getTutorReviewStats(params.id as string)
+      ])
+      
+      setReviews(reviewsData)
+      setRatingStats(stats)
+    } catch (error) {
+      console.error('Error loading reviews:', error)
+    }
+  }
 
   const loadTutor = async () => {
     try {
@@ -268,33 +290,20 @@ export default function TutorDetailPage() {
             {/* Reviews */}
             <div>
               <h2 className="text-xl font-bold mb-4">Reviews</h2>
-              <div className="space-y-4">
-                {tutorReviews.map((review) => (
-                  <AirbnbCard key={review.id}>
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center">
-                        <span className="text-lg font-semibold">{review.parentName.charAt(0)}</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="font-semibold">{review.parentName}</p>
-                          <div className="flex items-center gap-1">
-                            <Star className="h-4 w-4 fill-foreground text-foreground" />
-                            <span className="text-sm font-medium">{review.rating}</span>
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {new Date(review.date).toLocaleDateString("en-US", {
-                            month: "long",
-                            year: "numeric",
-                          })}
-                        </p>
-                        <p className="mt-3 text-muted-foreground">{review.comment}</p>
-                      </div>
-                    </div>
-                  </AirbnbCard>
-                ))}
-              </div>
+              
+              {/* Rating Summary */}
+              {ratingStats && (
+                <div className="mb-6">
+                  <RatingSummary
+                    averageRating={ratingStats.averageRating}
+                    totalReviews={ratingStats.totalReviews}
+                    ratingDistribution={ratingStats.ratingDistribution}
+                  />
+                </div>
+              )}
+              
+              {/* Review List */}
+              <ReviewList reviews={reviews} />
             </div>
           </div>
 
@@ -313,12 +322,22 @@ export default function TutorDetailPage() {
 
                 <AirbnbButton
                   variant="outline"
-                  className="w-full"
+                  className="w-full mb-3"
                   size="lg"
                   onClick={handleMessageTutor}
                   leftIcon={<MessageCircle className="h-5 w-5" />}
                 >
                   Message
+                </AirbnbButton>
+
+                <AirbnbButton
+                  variant="ghost"
+                  className="w-full text-destructive hover:bg-destructive/10"
+                  size="sm"
+                  onClick={() => setShowReportModal(true)}
+                  leftIcon={<Flag className="h-4 w-4" />}
+                >
+                  Report Abuse
                 </AirbnbButton>
 
                 {tutor.documents && tutor.documents.length > 0 && (
@@ -344,6 +363,33 @@ export default function TutorDetailPage() {
                   </div>
                 )}
               </AirbnbCard>
+
+              {/* Reviews Section */}
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold">Reviews</h2>
+                  <AirbnbButton
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowReviewModal(true)}
+                    leftIcon={<Star className="h-4 w-4" />}
+                  >
+                    Write a Review
+                  </AirbnbButton>
+                </div>
+
+                {ratingStats && (
+                  <div className="mb-6">
+                    <RatingSummary
+                      averageRating={ratingStats.averageRating}
+                      totalReviews={ratingStats.totalReviews}
+                      ratingDistribution={ratingStats.ratingDistribution}
+                    />
+                  </div>
+                )}
+
+                <ReviewList reviews={reviews} />
+              </div>
             </div>
           </div>
         </div>
@@ -351,6 +397,28 @@ export default function TutorDetailPage() {
 
       {/* Booking Modal */}
       <BookingModal isOpen={showBookingModal} onClose={() => setShowBookingModal(false)} tutor={tutor} />
+
+      {/* Review Modal */}
+      {tutor && (
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          tutorId={tutor.id}
+          tutorName={tutor.name}
+          onReviewSubmitted={loadReviews}
+        />
+      )}
+
+      {/* Report Modal */}
+      {tutor && (
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          reportedUserId={tutor.id}
+          reportedUserName={tutor.name}
+          reportedUserType="tutor"
+        />
+      )}
     </PageLayout>
   )
 }

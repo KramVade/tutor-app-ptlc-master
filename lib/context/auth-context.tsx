@@ -19,7 +19,7 @@ interface AuthContextType {
   isLoading: boolean
   login: (email: string, password: string, role: UserRole) => Promise<void>
   signup: (data: SignupData) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   updateUser: (data: Partial<User>) => Promise<void>
 }
 
@@ -37,11 +37,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const stored = localStorage.getItem("ptlcDigitalCoach_user")
-    if (stored) {
-      setUser(JSON.parse(stored))
+    const initAuth = async () => {
+      const stored = localStorage.getItem("ptlcDigitalCoach_user")
+      if (stored) {
+        const storedUser = JSON.parse(stored)
+        
+        // If admin, verify Firebase Auth session
+        if (storedUser.role === 'admin') {
+          try {
+            const { auth } = await import("@/firebase/config")
+            const { onAuthStateChanged } = await import("firebase/auth")
+            
+            onAuthStateChanged(auth, (firebaseUser) => {
+              if (firebaseUser && firebaseUser.email === storedUser.email) {
+                console.log('✅ Admin session restored from Firebase Auth')
+                setUser(storedUser)
+              } else {
+                console.log('⚠️  No valid Firebase Auth session, clearing admin')
+                localStorage.removeItem("ptlcDigitalCoach_user")
+                setUser(null)
+              }
+              setIsLoading(false)
+            })
+            return // Don't set isLoading false here, wait for onAuthStateChanged
+          } catch (error) {
+            console.error('Error checking Firebase Auth:', error)
+          }
+        } else {
+          setUser(storedUser)
+        }
+      }
+      setIsLoading(false)
     }
-    setIsLoading(false)
+    
+    initAuth()
   }, [])
 
   const login = async (email: string, password: string, role: UserRole) => {
@@ -49,12 +78,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     try {
       console.log('🔥 Starting login for:', email, 'as', role)
+      
+      // For admin, use Firebase Authentication
+      if (role === "admin") {
+        console.log('🔐 Using Firebase Authentication for admin...')
+        const { auth } = await import("@/firebase/config")
+        const { signInWithEmailAndPassword } = await import("firebase/auth")
+        const { getAdminByEmail } = await import("@/firebase/admin")
+        
+        try {
+          // Authenticate with Firebase Auth
+          const userCredential = await signInWithEmailAndPassword(auth, email, password)
+          console.log('✅ Firebase Authentication successful')
+          
+          // Get admin data from Firestore (optional, for additional info)
+          let adminData = await getAdminByEmail(email)
+          
+          // If admin doesn't exist in Firestore, create basic profile
+          if (!adminData) {
+            console.log('⚠️  Admin not in Firestore, using Firebase Auth data')
+            adminData = {
+              id: userCredential.user.uid,
+              email: userCredential.user.email || email,
+              name: userCredential.user.displayName || 'Admin User',
+              role: 'admin',
+              createdAt: new Date().toISOString()
+            }
+          }
+          
+          const authenticatedUser: User = {
+            id: userCredential.user.uid,
+            email: userCredential.user.email || email,
+            name: adminData.name || userCredential.user.displayName || 'Admin User',
+            role: 'admin',
+            avatar: userCredential.user.photoURL || `/placeholder.svg?height=100&width=100&query=admin avatar`,
+            phone: adminData.phone || "",
+            createdAt: adminData.createdAt || new Date().toISOString(),
+          }
+          
+          console.log('💾 Saving admin session...')
+          localStorage.setItem("ptlcDigitalCoach_user", JSON.stringify(authenticatedUser))
+          setUser(authenticatedUser)
+          console.log('✅ Admin login complete!')
+          setIsLoading(false)
+          return
+        } catch (authError: any) {
+          console.error('❌ Firebase Authentication error:', authError.message)
+          setIsLoading(false)
+          throw new Error(authError.message || "Invalid credentials")
+        }
+      }
+      
+      // For tutors and parents, use Firestore authentication
       let userData: any = null
 
       // Dynamically import Firebase services
       const { getTutorByEmail } = await import("@/firebase/tutors")
       const { getParentByEmail } = await import("@/firebase/parents")
-      const { getAdminByEmail } = await import("@/firebase/admin")
 
       console.log('✅ Firebase services imported')
 
@@ -65,9 +145,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else if (role === "parent") {
         console.log('🔍 Searching for parent...')
         userData = await getParentByEmail(email)
-      } else if (role === "admin") {
-        console.log('🔍 Searching for admin...')
-        userData = await getAdminByEmail(email)
       }
 
       // Check if user exists
@@ -196,7 +273,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logout = () => {
+  const logout = async () => {
+    // If admin, sign out from Firebase Auth
+    if (user?.role === 'admin') {
+      try {
+        const { auth } = await import("@/firebase/config")
+        const { signOut } = await import("firebase/auth")
+        await signOut(auth)
+        console.log('✅ Signed out from Firebase Auth')
+      } catch (error) {
+        console.error('Error signing out from Firebase Auth:', error)
+      }
+    }
+    
     localStorage.removeItem("ptlcDigitalCoach_user")
     setUser(null)
   }

@@ -98,5 +98,35 @@ service cloud.firestore {
          resource.data.tutorId == request.auth.uid);
       allow create: if isSignedIn();
     }
+    
+    // Reports collection
+    match /reports/{reportId} {
+      // Users can read their own reports (as reporter)
+      allow read: if isSignedIn() && 
+        resource.data.reporterId == request.auth.uid;
+      
+      // Anyone authenticated can create reports
+      allow create: if isSignedIn();
+      
+      // Only admins can update reports (handled by admin functions)
+      allow update: if isSignedIn();
+    }
+    
+    // Reviews collection
+    match /reviews/{reviewId} {
+      // Anyone can read reviews
+      allow read: if true;
+      
+      // Authenticated users can create reviews
+      allow create: if isSignedIn();
+      
+      // Users can update their own reviews
+      allow update: if isSignedIn() && 
+        resource.data.parentId == request.auth.uid;
+      
+      // Users can delete their own reviews
+      allow delete: if isSignedIn() && 
+        resource.data.parentId == request.auth.uid;
+    }
   }
 }

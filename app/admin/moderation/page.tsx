@@ -25,105 +25,17 @@ import {
   Shield,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-const mockReportsData = [
-  {
-    id: "REP-001",
-    type: "review",
-    reportedBy: "John Thompson",
-    reportedItem: "Review by Anonymous User",
-    content: "This review contains inappropriate language and false claims about the tutor.",
-    reason: "Inappropriate content",
-    status: "pending",
-    priority: "high",
-    date: "2024-01-15T10:30:00Z",
-  },
-  {
-    id: "REP-002",
-    type: "profile",
-    reportedBy: "Maria Garcia",
-    reportedItem: "Tutor: Robert Martinez",
-    content: "This tutor's profile contains misleading information about their qualifications.",
-    reason: "Misleading information",
-    status: "under_review",
-    priority: "medium",
-    date: "2024-01-14T14:20:00Z",
-  },
-  {
-    id: "REP-003",
-    type: "message",
-    reportedBy: "Sarah Johnson",
-    reportedItem: "Message from Parent Account",
-    content: "Received spam messages promoting external tutoring services.",
-    reason: "Spam",
-    status: "pending",
-    priority: "low",
-    date: "2024-01-13T09:15:00Z",
-  },
-  {
-    id: "REP-004",
-    type: "review",
-    reportedBy: "Michael Chen",
-    reportedItem: "Review by David Lee",
-    content: "This review was posted by someone who never had a session with me.",
-    reason: "Fake review",
-    status: "resolved",
-    priority: "high",
-    date: "2024-01-12T16:45:00Z",
-    resolution: "Review removed",
-  },
-  {
-    id: "REP-005",
-    type: "profile",
-    reportedBy: "Emily Rodriguez",
-    reportedItem: "Parent: Anonymous User",
-    content: "This account has been creating multiple bookings and cancelling them.",
-    reason: "Abuse of service",
-    status: "resolved",
-    priority: "high",
-    date: "2024-01-10T11:30:00Z",
-    resolution: "Account suspended",
-  },
-]
-
-const mockFlaggedContent = [
-  {
-    id: "FLAG-001",
-    type: "review",
-    content: "Terrible experience! The tutor was completely incompetent and a waste of money!!!",
-    author: "Anonymous Parent",
-    target: "Sarah Johnson",
-    reason: "Auto-flagged: Potential harassment",
-    date: "2024-01-15T08:00:00Z",
-  },
-  {
-    id: "FLAG-002",
-    type: "message",
-    content: "Hey, I can offer you tutoring outside the platform for cheaper rates. Contact me at...",
-    author: "Unknown User",
-    target: "Multiple parents",
-    reason: "Auto-flagged: External solicitation",
-    date: "2024-01-14T15:30:00Z",
-  },
-  {
-    id: "FLAG-003",
-    type: "bio",
-    content: "Professional tutor with 20 years experience. PhD from Harvard. Best rates guaranteed!",
-    author: "Robert Martinez",
-    target: "Profile",
-    reason: "Auto-flagged: Unverified claims",
-    date: "2024-01-13T12:00:00Z",
-  },
-]
+import { getAllReports, updateReportStatus, type Report } from "@/firebase/reports"
 
 export default function AdminModerationPage() {
   const { user, isLoading: authLoading } = useAuth()
   const { showToast } = useNotification()
   const router = useRouter()
-  const [reports, setReports] = useState(mockReportsData)
-  const [flaggedContent, setFlaggedContent] = useState(mockFlaggedContent)
-  const [selectedReport, setSelectedReport] = useState<(typeof mockReportsData)[0] | null>(null)
+  const [reports, setReports] = useState<Report[]>([])
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null)
   const [showReportModal, setShowReportModal] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isUpdating, setIsUpdating] = useState(false)
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) {
@@ -131,7 +43,30 @@ export default function AdminModerationPage() {
     }
   }, [user, authLoading, router])
 
-  if (authLoading || !user) {
+  useEffect(() => {
+    if (user?.role === "admin") {
+      loadReports()
+    }
+  }, [user])
+
+  const loadReports = async () => {
+    try {
+      setIsLoading(true)
+      const data = await getAllReports()
+      setReports(data)
+    } catch (error) {
+      console.error("Error loading reports:", error)
+      showToast({
+        type: "error",
+        title: "Error",
+        message: "Failed to load reports",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (authLoading || !user || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
@@ -139,75 +74,83 @@ export default function AdminModerationPage() {
     )
   }
 
-  const handleViewReport = (report: (typeof mockReportsData)[0]) => {
+  const handleViewReport = (report: Report) => {
     setSelectedReport(report)
     setShowReportModal(true)
   }
 
-  const handleResolveReport = (id: string, action: "approve" | "dismiss") => {
-    setReports((prev) =>
-      prev.map((r) => {
-        if (r.id === id) {
-          return {
-            ...r,
-            status: "resolved",
-            resolution: action === "approve" ? "Action taken" : "Report dismissed",
-          }
-        }
-        return r
-      }),
-    )
-    setShowReportModal(false)
-    showToast({
-      type: "success",
-      title: action === "approve" ? "Report Resolved" : "Report Dismissed",
-      message: action === "approve" ? "Appropriate action has been taken." : "The report has been dismissed.",
-    })
+  const handleResolveReport = async (id: string, action: "approve" | "dismiss") => {
+    try {
+      setIsUpdating(true)
+      const status = action === "approve" ? "resolved" : "dismissed"
+      const adminNotes = action === "approve" ? "Action taken by admin" : "Report dismissed by admin"
+      
+      await updateReportStatus(id, status, user.id, adminNotes)
+      
+      // Reload reports
+      await loadReports()
+      
+      setShowReportModal(false)
+      showToast({
+        type: "success",
+        title: action === "approve" ? "Report Resolved" : "Report Dismissed",
+        message: action === "approve" ? "Appropriate action has been taken." : "The report has been dismissed.",
+      })
+    } catch (error) {
+      console.error("Error updating report:", error)
+      showToast({
+        type: "error",
+        title: "Error",
+        message: "Failed to update report",
+      })
+    } finally {
+      setIsUpdating(false)
+    }
   }
 
-  const handleRemoveContent = (id: string) => {
-    setFlaggedContent((prev) => prev.filter((c) => c.id !== id))
-    showToast({
-      type: "success",
-      title: "Content Removed",
-      message: "The flagged content has been removed from the platform.",
-    })
-  }
-
-  const handleApproveContent = (id: string) => {
-    setFlaggedContent((prev) => prev.filter((c) => c.id !== id))
-    showToast({
-      type: "success",
-      title: "Content Approved",
-      message: "The content has been approved and will remain visible.",
-    })
+  const handleUpdateStatus = async (id: string, status: Report["status"]) => {
+    try {
+      await updateReportStatus(id, status, user.id)
+      await loadReports()
+      showToast({
+        type: "success",
+        title: "Status Updated",
+        message: `Report status changed to ${status}`,
+      })
+    } catch (error) {
+      console.error("Error updating status:", error)
+      showToast({
+        type: "error",
+        title: "Error",
+        message: "Failed to update status",
+      })
+    }
   }
 
   const reportColumns = [
     {
       key: "id",
       label: "Report ID",
-      render: (value: string) => <span className="font-mono text-sm">{value}</span>,
+      render: (value: string) => <span className="font-mono text-sm">{value?.substring(0, 8) || "N/A"}</span>,
     },
     {
-      key: "type",
+      key: "reportedUserType",
       label: "Type",
       render: (value: string) => (
         <span className="inline-flex items-center gap-1 capitalize">
-          {value === "review" && <Star className="h-4 w-4" />}
-          {value === "profile" && <User className="h-4 w-4" />}
-          {value === "message" && <MessageSquare className="h-4 w-4" />}
-          {value}
+          {value === "tutor" && <User className="h-4 w-4" />}
+          {value === "parent" && <User className="h-4 w-4" />}
+          {value || "N/A"}
         </span>
       ),
     },
     {
-      key: "reportedItem",
-      label: "Reported Item",
+      key: "reportedUserName",
+      label: "Reported User",
       render: (value: string, row: any) => (
         <div>
-          <p className="font-medium">{value}</p>
-          <p className="text-sm text-muted-foreground">{row.reason}</p>
+          <p className="font-medium">{value || "Unknown"}</p>
+          <p className="text-sm text-muted-foreground">{row.category?.replace(/_/g, " ") || "N/A"}</p>
         </div>
       ),
     },
@@ -219,11 +162,12 @@ export default function AdminModerationPage() {
           className={cn(
             "px-2 py-1 rounded-full text-xs font-medium capitalize",
             value === "high" && "bg-destructive/10 text-destructive",
+            value === "urgent" && "bg-destructive/20 text-destructive font-bold",
             value === "medium" && "bg-warning/10 text-warning",
             value === "low" && "bg-muted text-muted-foreground",
           )}
         >
-          {value}
+          {value || "medium"}
         </span>
       ),
     },
@@ -237,67 +181,30 @@ export default function AdminModerationPage() {
             value === "pending" && "bg-warning/10 text-warning",
             value === "under_review" && "bg-blue-100 text-blue-700",
             value === "resolved" && "bg-success/10 text-success",
+            value === "dismissed" && "bg-muted text-muted-foreground",
           )}
         >
           {value === "pending" && <Clock className="h-3 w-3" />}
           {value === "under_review" && <Eye className="h-3 w-3" />}
           {value === "resolved" && <CheckCircle className="h-3 w-3" />}
-          {value.replace("_", " ")}
+          {value === "dismissed" && <XCircle className="h-3 w-3" />}
+          {value?.replace("_", " ") || "pending"}
         </span>
       ),
     },
     {
-      key: "date",
+      key: "createdAt",
       label: "Date",
       render: (value: string) => new Date(value).toLocaleDateString(),
-    },
-  ]
-
-  const flaggedColumns = [
-    {
-      key: "type",
-      label: "Type",
-      render: (value: string) => (
-        <span className="inline-flex items-center gap-1 capitalize">
-          {value === "review" && <Star className="h-4 w-4" />}
-          {value === "message" && <MessageSquare className="h-4 w-4" />}
-          {value === "bio" && <FileText className="h-4 w-4" />}
-          {value}
-        </span>
-      ),
-    },
-    {
-      key: "content",
-      label: "Content",
-      render: (value: string) => <p className="text-sm line-clamp-2 max-w-md">{value}</p>,
-    },
-    {
-      key: "author",
-      label: "Author",
-      render: (value: string, row: any) => (
-        <div>
-          <p className="font-medium">{value}</p>
-          <p className="text-sm text-muted-foreground">→ {row.target}</p>
-        </div>
-      ),
-    },
-    {
-      key: "reason",
-      label: "Reason",
-      render: (value: string) => (
-        <span className="text-sm text-warning flex items-center gap-1">
-          <AlertTriangle className="h-3 w-3" />
-          {value}
-        </span>
-      ),
     },
   ]
 
   const pendingReports = reports.filter((r) => r.status === "pending").length
   const underReview = reports.filter((r) => r.status === "under_review").length
   const resolvedToday = reports.filter(
-    (r) => r.status === "resolved" && new Date(r.date).toDateString() === new Date().toDateString(),
+    (r) => r.status === "resolved" && new Date(r.createdAt).toDateString() === new Date().toDateString(),
   ).length
+  const urgentReports = reports.filter((r) => r.priority === "urgent" && r.status === "pending").length
 
   return (
     <PageLayout>
@@ -314,25 +221,21 @@ export default function AdminModerationPage() {
           <StatsCard
             title="Pending Reports"
             value={pendingReports.toString()}
-            subtitle="Requires action"
             icon={<Flag className="h-5 w-5" />}
           />
           <StatsCard
             title="Under Review"
             value={underReview.toString()}
-            subtitle="Being investigated"
             icon={<Eye className="h-5 w-5" />}
           />
           <StatsCard
-            title="Flagged Content"
-            value={flaggedContent.length.toString()}
-            subtitle="Auto-detected"
+            title="Urgent Reports"
+            value={urgentReports.toString()}
             icon={<AlertTriangle className="h-5 w-5" />}
           />
           <StatsCard
             title="Resolved Today"
             value={resolvedToday.toString()}
-            subtitle="Completed"
             icon={<Shield className="h-5 w-5" />}
           />
         </div>
@@ -341,11 +244,11 @@ export default function AdminModerationPage() {
         <Tabs defaultValue="reports">
           <TabsList className="mb-6">
             <TabsTrigger value="reports">
-              User Reports ({reports.filter((r) => r.status !== "resolved").length})
+              User Reports ({reports.filter((r) => r.status !== "resolved" && r.status !== "dismissed").length})
             </TabsTrigger>
-            <TabsTrigger value="flagged">Flagged Content ({flaggedContent.length})</TabsTrigger>
+            <TabsTrigger value="flagged">Flagged Content (0)</TabsTrigger>
             <TabsTrigger value="resolved">
-              Resolved ({reports.filter((r) => r.status === "resolved").length})
+              Resolved ({reports.filter((r) => r.status === "resolved" || r.status === "dismissed").length})
             </TabsTrigger>
           </TabsList>
 
@@ -353,7 +256,7 @@ export default function AdminModerationPage() {
             <AirbnbCard>
               <DataTable
                 columns={reportColumns}
-                data={reports.filter((r) => r.status !== "resolved")}
+                data={reports.filter((r) => r.status !== "resolved" && r.status !== "dismissed")}
                 searchPlaceholder="Search reports..."
                 actions={(row) => (
                   <AirbnbButton variant="outline" size="sm" onClick={() => handleViewReport(row)}>
@@ -366,31 +269,11 @@ export default function AdminModerationPage() {
 
           <TabsContent value="flagged">
             <AirbnbCard>
-              <DataTable
-                columns={flaggedColumns}
-                data={flaggedContent}
-                searchPlaceholder="Search flagged content..."
-                actions={(row) => (
-                  <div className="flex gap-2">
-                    <AirbnbButton
-                      variant="ghost"
-                      size="sm"
-                      className="text-success hover:text-success"
-                      onClick={() => handleApproveContent(row.id)}
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                    </AirbnbButton>
-                    <AirbnbButton
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleRemoveContent(row.id)}
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </AirbnbButton>
-                  </div>
-                )}
-              />
+              <div className="p-8 text-center text-muted-foreground">
+                <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Auto-flagged content detection coming soon</p>
+                <p className="text-sm mt-2">This feature will automatically detect and flag potentially problematic content</p>
+              </div>
             </AirbnbCard>
           </TabsContent>
 
@@ -400,12 +283,17 @@ export default function AdminModerationPage() {
                 columns={[
                   ...reportColumns,
                   {
-                    key: "resolution",
+                    key: "adminNotes",
                     label: "Resolution",
                     render: (value: string) => <span className="text-sm text-muted-foreground">{value || "-"}</span>,
                   },
+                  {
+                    key: "resolvedAt",
+                    label: "Resolved At",
+                    render: (value: string) => value ? new Date(value).toLocaleDateString() : "-",
+                  },
                 ]}
-                data={reports.filter((r) => r.status === "resolved")}
+                data={reports.filter((r) => r.status === "resolved" || r.status === "dismissed")}
                 searchPlaceholder="Search resolved reports..."
               />
             </AirbnbCard>
@@ -416,25 +304,27 @@ export default function AdminModerationPage() {
       {/* Report Detail Modal */}
       <AirbnbModal isOpen={showReportModal} onClose={() => setShowReportModal(false)} title="Review Report" size="lg">
         {selectedReport && (
-          <div className="space-y-6">
+          <div className="space-y-6 p-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm text-muted-foreground">Report ID</label>
-                <p className="font-mono">{selectedReport.id}</p>
+                <p className="font-mono text-sm">{selectedReport.id?.substring(0, 12) || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm text-muted-foreground">Type</label>
-                <p className="capitalize">{selectedReport.type}</p>
+                <label className="text-sm text-muted-foreground">Category</label>
+                <p className="capitalize">{selectedReport.category?.replace(/_/g, " ") || "N/A"}</p>
               </div>
               <div>
                 <label className="text-sm text-muted-foreground">Reported By</label>
-                <p>{selectedReport.reportedBy}</p>
+                <p>{selectedReport.reporterName}</p>
+                <p className="text-xs text-muted-foreground">{selectedReport.reporterEmail}</p>
               </div>
               <div>
                 <label className="text-sm text-muted-foreground">Priority</label>
                 <span
                   className={cn(
                     "px-2 py-1 rounded-full text-xs font-medium capitalize",
+                    selectedReport.priority === "urgent" && "bg-destructive/20 text-destructive font-bold",
                     selectedReport.priority === "high" && "bg-destructive/10 text-destructive",
                     selectedReport.priority === "medium" && "bg-warning/10 text-warning",
                     selectedReport.priority === "low" && "bg-muted text-muted-foreground",
@@ -446,31 +336,49 @@ export default function AdminModerationPage() {
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground">Reported Item</label>
-              <p className="font-medium">{selectedReport.reportedItem}</p>
-            </div>
-
-            <div>
-              <label className="text-sm text-muted-foreground">Reason</label>
-              <p>{selectedReport.reason}</p>
+              <label className="text-sm text-muted-foreground">Reported User</label>
+              <p className="font-medium">{selectedReport.reportedUserName}</p>
+              <p className="text-sm text-muted-foreground capitalize">Type: {selectedReport.reportedUserType}</p>
             </div>
 
             <div>
               <label className="text-sm text-muted-foreground">Description</label>
               <div className="mt-2 p-4 bg-secondary rounded-lg">
-                <p className="text-sm">{selectedReport.content}</p>
+                <p className="text-sm">{selectedReport.description}</p>
               </div>
             </div>
 
-            {selectedReport.status !== "resolved" && (
+            {selectedReport.bookingId && (
+              <div>
+                <label className="text-sm text-muted-foreground">Related Booking</label>
+                <p className="font-mono text-sm">{selectedReport.bookingId}</p>
+              </div>
+            )}
+
+            {selectedReport.adminNotes && (
+              <div>
+                <label className="text-sm text-muted-foreground">Admin Notes</label>
+                <div className="mt-2 p-4 bg-muted rounded-lg">
+                  <p className="text-sm">{selectedReport.adminNotes}</p>
+                </div>
+              </div>
+            )}
+
+            {selectedReport.status !== "resolved" && selectedReport.status !== "dismissed" && (
               <div className="flex gap-3 pt-4 border-t border-border">
-                <AirbnbButton className="flex-1" onClick={() => handleResolveReport(selectedReport.id, "approve")}>
+                <AirbnbButton 
+                  className="flex-1" 
+                  onClick={() => handleResolveReport(selectedReport.id!, "approve")}
+                  disabled={isUpdating}
+                  isLoading={isUpdating}
+                >
                   Take Action
                 </AirbnbButton>
                 <AirbnbButton
                   variant="outline"
                   className="flex-1"
-                  onClick={() => handleResolveReport(selectedReport.id, "dismiss")}
+                  onClick={() => handleResolveReport(selectedReport.id!, "dismiss")}
+                  disabled={isUpdating}
                 >
                   Dismiss Report
                 </AirbnbButton>

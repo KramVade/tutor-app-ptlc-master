@@ -7,7 +7,7 @@ import { PageLayout } from "@/components/layout/page-layout"
 import { AirbnbCard } from "@/components/ui/airbnb-card"
 import { AirbnbButton } from "@/components/ui/airbnb-button"
 import { BookingCard } from "@/components/booking/booking-card"
-import { Calendar, DollarSign, Users, ArrowRight, Clock } from "lucide-react"
+import { Calendar, DollarSign, Users, ArrowRight, Clock, Star } from "lucide-react"
 import Link from "next/link"
 
 export default function TutorDashboard() {
@@ -172,7 +172,7 @@ export default function TutorDashboard() {
         {/* Quick Actions */}
         <div className="mt-8">
           <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
             <Link href="/tutor/schedule">
               <AirbnbCard hoverable className="flex items-center gap-4">
                 <div className="p-3 bg-primary/10 rounded-xl">
@@ -192,6 +192,17 @@ export default function TutorDashboard() {
                 <div>
                   <p className="font-semibold">Edit Profile</p>
                   <p className="text-sm text-muted-foreground">Update your info</p>
+                </div>
+              </AirbnbCard>
+            </Link>
+            <Link href="/tutor/reviews">
+              <AirbnbCard hoverable className="flex items-center gap-4">
+                <div className="p-3 bg-warning/10 rounded-xl">
+                  <Star className="h-6 w-6 text-warning" />
+                </div>
+                <div>
+                  <p className="font-semibold">Your Reviews</p>
+                  <p className="text-sm text-muted-foreground">See parent feedback</p>
                 </div>
               </AirbnbCard>
             </Link>
