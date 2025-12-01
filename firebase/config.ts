@@ -11,18 +11,21 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || ''
 };
 
-let app: FirebaseApp;
-let db: Firestore;
-let auth: Auth;
+let app: FirebaseApp | undefined;
+let db: Firestore | undefined;
+let auth: Auth | undefined;
 
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
-  auth = getAuth(app);
-} else {
-  app = getApps()[0];
-  db = getFirestore(app);
-  auth = getAuth(app);
+// Only initialize Firebase in the browser or when environment variables are available
+if (typeof window !== 'undefined' || process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
+  } else {
+    app = getApps()[0];
+    db = getFirestore(app);
+    auth = getAuth(app);
+  }
 }
 
 export { app, db, auth };
