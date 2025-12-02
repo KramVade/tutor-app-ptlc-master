@@ -4,16 +4,20 @@ import { useState } from "react"
 import { AirbnbCard } from "../ui/airbnb-card"
 import { AirbnbButton } from "../ui/airbnb-button"
 import { AirbnbModal } from "../ui/airbnb-modal"
-import { useData } from "@/lib/context/data-context"
 import { useNotification } from "@/lib/context/notification-context"
-import { Calendar, Clock, MessageCircle, X, Check } from "lucide-react"
+import { Calendar, Clock, MessageCircle, X, Check, User, BookOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { updateBookingStatus } from "@/firebase/bookings"
 
 interface BookingCardProps {
   booking: {
-    id: string
+    id?: string
     tutorId: string
+    tutorName: string
     childId: string
+    childName: string
+    childGrade?: string
+    parentName: string
     subject: string
     date: string
     time: string
@@ -28,14 +32,9 @@ interface BookingCardProps {
 }
 
 export function BookingCard({ booking, showActions = true, role = "parent" }: BookingCardProps) {
-  const { tutors, children, updateBooking } = useData()
   const { showToast } = useNotification()
-  const [showMenu, setShowMenu] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-
-  const tutor = tutors.find((t) => t.id === booking.tutorId)
-  const child = children.find((c) => c.id === booking.childId)
 
   const statusColors = {
     pending: "bg-warning/10 text-warning",
@@ -45,66 +44,105 @@ export function BookingCard({ booking, showActions = true, role = "parent" }: Bo
   }
 
   const handleCancel = async () => {
-    setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    updateBooking(booking.id, { status: "cancelled" })
-    setShowCancelModal(false)
-    setIsLoading(false)
-    showToast({
-      type: "info",
-      title: "Booking Cancelled",
-      message: "Your booking has been cancelled successfully.",
-    })
+    if (!booking.id) return
+    
+    try {
+      setIsLoading(true)
+      await updateBookingStatus(booking.id, "cancelled")
+      setShowCancelModal(false)
+      showToast({
+        type: "info",
+        title: "Booking Cancelled",
+        message: "Your booking has been cancelled successfully.",
+      })
+      // Reload page to refresh data
+      window.location.reload()
+    } catch (error) {
+      console.error("Error cancelling booking:", error)
+      showToast({
+        type: "error",
+        title: "Error",
+        message: "Failed to cancel booking",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleApprove = async () => {
-    setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 800))
-    updateBooking(booking.id, { status: "confirmed" })
-    setIsLoading(false)
-    showToast({
-      type: "success",
-      title: "Booking Approved",
-      message: "The session has been confirmed.",
-    })
+    if (!booking.id) return
+    
+    try {
+      setIsLoading(true)
+      await updateBookingStatus(booking.id, "confirmed")
+      showToast({
+        type: "success",
+        title: "Booking Approved",
+        message: "The session has been confirmed.",
+      })
+      // Reload page to refresh data
+      window.location.reload()
+    } catch (error) {
+      console.error("Error approving booking:", error)
+      showToast({
+        type: "error",
+        title: "Error",
+        message: "Failed to approve booking",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleDecline = async () => {
-    setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 800))
-    updateBooking(booking.id, { status: "cancelled" })
-    setIsLoading(false)
-    showToast({
-      type: "info",
-      title: "Booking Declined",
-      message: "The booking request has been declined.",
-    })
+    if (!booking.id) return
+    
+    try {
+      setIsLoading(true)
+      await updateBookingStatus(booking.id, "cancelled")
+      showToast({
+        type: "info",
+        title: "Booking Declined",
+        message: "The booking request has been declined.",
+      })
+      // Reload page to refresh data
+      window.location.reload()
+    } catch (error) {
+      console.error("Error declining booking:", error)
+      showToast({
+        type: "error",
+        title: "Error",
+        message: "Failed to decline booking",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
     <>
       <AirbnbCard className="relative">
         <div className="flex items-start gap-4">
-          {role === "parent" && tutor && (
-            <img
-              src={tutor.avatar || "/placeholder.svg"}
-              alt={tutor.name}
-              className="h-14 w-14 rounded-full object-cover"
-            />
-          )}
-          {role === "tutor" && child && (
-            <img
-              src={child.avatar || "/placeholder.svg"}
-              alt={child.name}
-              className="h-14 w-14 rounded-full object-cover"
-            />
-          )}
+          <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <User className="h-6 w-6 text-primary" />
+          </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="font-semibold text-foreground">{role === "parent" ? tutor?.name : child?.name}</h3>
-                <p className="text-sm text-muted-foreground">{booking.subject}</p>
+                <h3 className="font-semibold text-foreground">
+                  {role === "parent" ? booking.tutorName : booking.childName}
+                </h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">{booking.subject}</p>
+                </div>
+                {role === "tutor" && booking.childGrade && (
+                  <p className="text-xs text-muted-foreground mt-1">Grade {booking.childGrade}</p>
+                )}
+                {role === "tutor" && (
+                  <p className="text-xs text-muted-foreground mt-1">Parent: {booking.parentName}</p>
+                )}
               </div>
               <span
                 className={cn(
@@ -127,7 +165,7 @@ export function BookingCard({ booking, showActions = true, role = "parent" }: Bo
               </div>
               <div className="flex items-center gap-1.5">
                 <Clock className="h-4 w-4" />
-                {booking.time} · {booking.duration} min
+                {booking.time} · {booking.duration}h
               </div>
             </div>
 
