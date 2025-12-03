@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/context/auth-context"
 import { PageLayout } from "@/components/layout/page-layout"
 import { AirbnbButton } from "@/components/ui/airbnb-button"
-import { GraduationCap, Search, Calendar, MessageCircle, Star, Shield, Clock } from "lucide-react"
+import { GraduationCap, Calendar, MessageCircle, Star, Shield, Clock } from "lucide-react"
 import Link from "next/link"
 
 export default function HomePage() {
@@ -52,36 +52,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mb-8 relative z-10">
-          <div className="bg-card rounded-2xl shadow-[0_4px_14px_rgba(0,0,0,0.12)] p-4 md:p-6">
-            <div className="grid md:grid-cols-4 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-2">Subject</label>
-                <input
-                  type="text"
-                  placeholder="What do you want to learn?"
-                  className="w-full h-12 px-4 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Location</label>
-                <input
-                  type="text"
-                  placeholder="City or ZIP"
-                  className="w-full h-12 px-4 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              <div className="flex items-end">
-                <Link href="/signup" className="w-full">
-                  <AirbnbButton className="w-full" size="lg" leftIcon={<Search className="h-5 w-5" />}>
-                    Search
-                  </AirbnbButton>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* Features Section */}

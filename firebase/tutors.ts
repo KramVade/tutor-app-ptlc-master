@@ -136,3 +136,72 @@ export async function getAvailableTutors() {
     throw error;
   }
 }
+
+// Approval functions
+export async function getPendingTutors() {
+  try {
+    const tutorsRef = collection(db, TUTORS_COLLECTION);
+    const q = query(tutorsRef, where('approved', '==', false));
+    
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error fetching pending tutors:', error);
+    throw error;
+  }
+}
+
+export async function getApprovedTutors() {
+  try {
+    const tutorsRef = collection(db, TUTORS_COLLECTION);
+    const q = query(tutorsRef, where('approved', '==', true));
+    
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error fetching approved tutors:', error);
+    throw error;
+  }
+}
+
+export async function approveTutor(tutorId: string, approvedBy: string) {
+  try {
+    const tutorRef = doc(db, TUTORS_COLLECTION, tutorId);
+    await updateDoc(tutorRef, {
+      approved: true,
+      approvedBy,
+      approvedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    
+    console.log('✅ Tutor approved:', tutorId);
+  } catch (error) {
+    console.error('❌ Error approving tutor:', error);
+    throw error;
+  }
+}
+
+export async function rejectTutor(tutorId: string, rejectedBy: string, reason?: string) {
+  try {
+    const tutorRef = doc(db, TUTORS_COLLECTION, tutorId);
+    await updateDoc(tutorRef, {
+      approved: false,
+      rejected: true,
+      rejectedBy,
+      rejectedAt: new Date().toISOString(),
+      rejectionReason: reason,
+      updatedAt: new Date().toISOString()
+    });
+    
+    console.log('✅ Tutor rejected:', tutorId);
+  } catch (error) {
+    console.error('❌ Error rejecting tutor:', error);
+    throw error;
+  }
+}

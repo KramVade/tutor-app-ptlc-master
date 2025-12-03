@@ -21,7 +21,7 @@ export default function TutorsPage() {
   const [tutors, setTutors] = useState<any[]>([])
   const [filters, setFilters] = useState({
     subjects: [] as string[],
-    priceRange: [0, 200] as [number, number],
+    priceRange: [0, 5000] as [number, number], // Increased max to accommodate all tutors
     rating: 0,
     availability: [] as string[],
   })
@@ -57,16 +57,22 @@ export default function TutorsPage() {
   }
 
   const filteredTutors = tutors.filter((tutor) => {
-    const matchesSearch =
-      tutor.name.toLowerCase().includes(search.toLowerCase()) ||
-      tutor.subjects.some((s) => s.toLowerCase().includes(search.toLowerCase())) ||
-      tutor.bio.toLowerCase().includes(search.toLowerCase())
+    // Only show approved tutors to parents
+    if (tutor.approved !== true) {
+      return false
+    }
 
-    const matchesSubjects = filters.subjects.length === 0 || filters.subjects.some((s) => tutor.subjects.includes(s))
+    const matchesSearch =
+      search === '' || // If no search term, match all
+      tutor.name.toLowerCase().includes(search.toLowerCase()) ||
+      (tutor.subjects && tutor.subjects.length > 0 && tutor.subjects.some((s: string) => s.toLowerCase().includes(search.toLowerCase()))) ||
+      (tutor.bio && tutor.bio.toLowerCase().includes(search.toLowerCase()))
+
+    const matchesSubjects = filters.subjects.length === 0 || (tutor.subjects && filters.subjects.some((s) => tutor.subjects.includes(s)))
 
     const matchesPrice = tutor.hourlyRate >= filters.priceRange[0] && tutor.hourlyRate <= filters.priceRange[1]
 
-    const matchesRating = tutor.rating >= filters.rating
+    const matchesRating = filters.rating === 0 || (tutor.rating || 0) >= filters.rating
 
     return matchesSearch && matchesSubjects && matchesPrice && matchesRating
   })
@@ -139,7 +145,7 @@ export default function TutorsPage() {
                 setSearch("")
                 setFilters({
                   subjects: [],
-                  priceRange: [0, 200],
+                  priceRange: [0, 5000],
                   rating: 0,
                   availability: [],
                 })

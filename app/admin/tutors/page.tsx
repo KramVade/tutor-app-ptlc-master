@@ -9,7 +9,8 @@ import { DataTable } from "@/components/admin/data-table"
 import { AirbnbButton } from "@/components/ui/airbnb-button"
 import { AirbnbModal } from "@/components/ui/airbnb-modal"
 import { AirbnbCard } from "@/components/ui/airbnb-card"
-import { BadgeCheck, X, Eye, FileText, Mail, Phone, MapPin, DollarSign, Star } from "lucide-react"
+import { BadgeCheck, X, Eye, FileText, Mail, Phone, MapPin, DollarSign, Star, Check, Clock, XCircle } from "lucide-react"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 
 // Disable static generation for this page
@@ -24,6 +25,8 @@ export default function AdminTutorsPage() {
   const [selectedTutor, setSelectedTutor] = useState<any>(null)
   const [showModal, setShowModal] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [activeTab, setActiveTab] = useState('pending')
+  const [approving, setApproving] = useState<string | null>(null)
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) {
@@ -92,6 +95,141 @@ export default function AdminTutorsPage() {
     }
   }
 
+  const handleApproveTutor = async (tutorId: string) => {
+    if (!user) return
+    
+    try {
+      setApproving(tutorId)
+      const { approveTutor } = await import("@/firebase/tutors")
+      const { addNotification } = await import("@/firebase/notifications")
+      
+      await approveTutor(tutorId, user.id)
+      
+      // Find tutor to get email for notification
+      const tutor = tutors.find(t => t.id === tutorId)
+      if (tutor) {
+        // Send in-app notification
+        await addNotification({
+          userId: tutorId,
+          type: 'system',
+          title: 'Account Approved!',
+          message: 'Your tutor account has been approved. You can now start accepting sessions.',
+          read: false,
+          createdAt: new Date().toISOString()
+        })
+        
+        // Send email notification
+        try {
+          const response = await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'tutor_approved',
+              to: tutor.email,
+              tutorName: tutor.name,
+            }),
+          })
+          
+          if (response.ok) {
+            console.log('✅ Approval email sent to:', tutor.email)
+          } else {
+            console.error('❌ Failed to send approval email')
+          }
+        } catch (emailError) {
+          console.error('Error sending approval email:', emailError)
+          // Don't fail the approval if email fails
+        }
+      }
+      
+      showToast({
+        type: "success",
+        title: "Tutor Approved",
+        message: "Tutor account has been approved and email sent"
+      })
+      
+      await loadTutors()
+    } catch (error) {
+      console.error('Error approving tutor:', error)
+      showToast({
+        type: "error",
+        title: "Error",
+        message: "Failed to approve tutor"
+      })
+    } finally {
+      setApproving(null)
+    }
+  }
+
+  const handleRejectTutor = async (tutorId: string) => {
+    const reason = prompt('Please provide a reason for rejection (optional):')
+    
+    if (!user) return
+    
+    try {
+      setApproving(tutorId)
+      const { rejectTutor } = await import("@/firebase/tutors")
+      const { addNotification } = await import("@/firebase/notifications")
+      
+      await rejectTutor(tutorId, user.id, reason || undefined)
+      
+      // Notify tutor
+      const tutor = tutors.find(t => t.id === tutorId)
+      if (tutor) {
+        // Send in-app notification
+        await addNotification({
+          userId: tutorId,
+          type: 'system',
+          title: 'Account Application Update',
+          message: reason 
+            ? `Your tutor application was not approved. Reason: ${reason}`
+            : 'Your tutor application was not approved. Please contact support for more information.',
+          read: false,
+          createdAt: new Date().toISOString()
+        })
+        
+        // Send email notification
+        try {
+          const response = await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'tutor_rejected',
+              to: tutor.email,
+              tutorName: tutor.name,
+              reason: reason || undefined,
+            }),
+          })
+          
+          if (response.ok) {
+            console.log('✅ Rejection email sent to:', tutor.email)
+          } else {
+            console.error('❌ Failed to send rejection email')
+          }
+        } catch (emailError) {
+          console.error('Error sending rejection email:', emailError)
+          // Don't fail the rejection if email fails
+        }
+      }
+      
+      showToast({
+        type: "success",
+        title: "Tutor Rejected",
+        message: "Tutor application has been rejected and email sent"
+      })
+      
+      await loadTutors()
+    } catch (error) {
+      console.error('Error rejecting tutor:', error)
+      showToast({
+        type: "error",
+        title: "Error",
+        message: "Failed to reject tutor"
+      })
+    } finally {
+      setApproving(null)
+    }
+  }
+
   const handleDeleteTutor = async (tutorId: string) => {
     if (!confirm('Are you sure you want to delete this tutor? This action cannot be undone.')) {
       return
@@ -131,6 +269,15 @@ export default function AdminTutorsPage() {
       </div>
     )
   }
+
+  // Filter tutors by approval status
+  const pendingTutors = tutors.filter(t => t.approved === false && !t.rejected)
+  const approvedTutors = tutors.filter(t => t.approved === true)
+  const rejectedTutors = tutors.filter(t => t.rejected === true)
+  
+  const displayedTutors = activeTab === 'pending' ? pendingTutors : 
+                          activeTab === 'approved' ? approvedTutors :
+                          rejectedTutors
 
   const columns = [
     {
@@ -201,6 +348,51 @@ export default function AdminTutorsPage() {
         </span>
       ),
     },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (_: any, row: any) => (
+        <div className="flex items-center gap-2">
+          {activeTab === 'pending' && (
+            <>
+              <AirbnbButton
+                size="sm"
+                onClick={() => handleApproveTutor(row.id)}
+                disabled={approving === row.id}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {approving === row.id ? 'Processing...' : (
+                  <>
+                    <Check className="h-4 w-4 mr-1" />
+                    Approve
+                  </>
+                )}
+              </AirbnbButton>
+              <AirbnbButton
+                size="sm"
+                variant="outline"
+                onClick={() => handleRejectTutor(row.id)}
+                disabled={approving === row.id}
+                className="border-red-600 text-red-600 hover:bg-red-50"
+              >
+                <XCircle className="h-4 w-4 mr-1" />
+                Reject
+              </AirbnbButton>
+            </>
+          )}
+          <AirbnbButton
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setSelectedTutor(row)
+              setShowModal(true)
+            }}
+          >
+            <Eye className="h-4 w-4" />
+          </AirbnbButton>
+        </div>
+      ),
+    },
   ]
 
   return (
@@ -210,7 +402,7 @@ export default function AdminTutorsPage() {
           <div>
             <h1 className="text-3xl font-bold">Tutor Management</h1>
             <p className="text-muted-foreground mt-1">
-              {tutors.length} tutor{tutors.length !== 1 ? 's' : ''} registered
+              {pendingTutors.length} pending • {approvedTutors.length} approved • {rejectedTutors.length} rejected
             </p>
           </div>
           <AirbnbButton onClick={loadTutors}>
@@ -218,19 +410,37 @@ export default function AdminTutorsPage() {
           </AirbnbButton>
         </div>
 
-        {tutors.length === 0 ? (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList>
+            <TabsTrigger value="pending">
+              <Clock className="h-4 w-4 mr-2" />
+              Pending ({pendingTutors.length})
+            </TabsTrigger>
+            <TabsTrigger value="approved">
+              <Check className="h-4 w-4 mr-2" />
+              Approved ({approvedTutors.length})
+            </TabsTrigger>
+            <TabsTrigger value="rejected">
+              <XCircle className="h-4 w-4 mr-2" />
+              Rejected ({rejectedTutors.length})
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {displayedTutors.length === 0 ? (
           <AirbnbCard>
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No tutors found</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Tutors will appear here once they register
+              <p className="text-muted-foreground">
+                {activeTab === 'pending' && 'No pending tutors'}
+                {activeTab === 'approved' && 'No approved tutors'}
+                {activeTab === 'rejected' && 'No rejected tutors'}
               </p>
             </div>
           </AirbnbCard>
         ) : (
           <DataTable
             columns={columns}
-            data={tutors}
+            data={displayedTutors}
             searchPlaceholder="Search tutors..."
             actions={(row) => (
               <div className="flex items-center gap-2">

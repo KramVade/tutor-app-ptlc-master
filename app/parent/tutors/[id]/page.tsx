@@ -248,11 +248,11 @@ export default function TutorDetailPage() {
             </AirbnbCard>
 
             {/* Education & Experience */}
-            {(tutor.education || tutor.experience) && (
+            {((Array.isArray(tutor.education) && tutor.education.length > 0) || tutor.experience) && (
               <AirbnbCard>
                 <h2 className="text-xl font-bold mb-4">Education & Experience</h2>
                 <div className="space-y-4">
-                  {(tutor.education || []).map((edu, i) => (
+                  {Array.isArray(tutor.education) && tutor.education.map((edu, i) => (
                     <div key={i} className="flex items-start gap-4">
                       <div className="p-2 bg-secondary rounded-lg">
                         <GraduationCap className="h-5 w-5 text-muted-foreground" />

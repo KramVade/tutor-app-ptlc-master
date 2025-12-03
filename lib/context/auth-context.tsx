@@ -165,6 +165,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       console.log('✅ Password verified')
 
+      // Check if tutor is approved
+      if (role === "tutor" && userData.approved === false) {
+        console.log('⏳ Tutor account pending approval')
+        
+        // Create user object for pending tutor
+        const pendingUser: User = {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name,
+          role,
+          avatar: userData.avatar || `/placeholder.svg?height=100&width=100&query=${role} avatar`,
+          phone: userData.phone || "",
+          createdAt: userData.createdAt,
+        }
+        
+        localStorage.setItem("ptlcDigitalCoach_user", JSON.stringify(pendingUser))
+        localStorage.setItem("ptlcDigitalCoach_pendingApproval", "true")
+        setUser(pendingUser)
+        setIsLoading(false)
+        return
+      }
+
       // Create user object
       const authenticatedUser: User = {
         id: userData.id,
@@ -178,6 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       console.log('💾 Saving session...')
       localStorage.setItem("ptlcDigitalCoach_user", JSON.stringify(authenticatedUser))
+      localStorage.removeItem("ptlcDigitalCoach_pendingApproval")
       setUser(authenticatedUser)
       console.log('✅ Login complete!')
       setIsLoading(false)
@@ -240,6 +263,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           rating: 0,
           available: true,
           avatar: "",
+          approved: false, // Tutors need admin approval
+          rejected: false,
         })
         console.log('✅ Tutor created with ID:', userId)
       } else if (data.role === "parent") {
@@ -263,6 +288,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       console.log('💾 Saving user to localStorage...')
       localStorage.setItem("ptlcDigitalCoach_user", JSON.stringify(newUser))
+      
+      // Mark tutors as pending approval
+      if (data.role === "tutor") {
+        localStorage.setItem("ptlcDigitalCoach_pendingApproval", "true")
+        console.log('⏳ Tutor account created - pending approval')
+      }
+      
       setUser(newUser)
       console.log('✅ Signup complete!')
       setIsLoading(false)
@@ -287,6 +319,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     localStorage.removeItem("ptlcDigitalCoach_user")
+    localStorage.removeItem("ptlcDigitalCoach_pendingApproval")
     setUser(null)
   }
 

@@ -34,7 +34,6 @@ export function Header() {
       { href: "/admin/dashboard", label: "Dashboard" },
       { href: "/admin/tutors", label: "Tutors" },
       { href: "/admin/users", label: "Users" },
-      { href: "/admin/analytics", label: "Analytics" },
       { href: "/admin/payments", label: "Payments" },
       { href: "/admin/moderation", label: "Moderation" },
     ],

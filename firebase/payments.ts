@@ -36,6 +36,12 @@ export interface Payment {
   paymentDate?: string;
   verifiedBy?: string;
   verifiedAt?: string;
+  // Tutor payout tracking (PTLC pays tutor)
+  tutorPayoutStatus?: 'pending' | 'processing' | 'paid' | 'failed';
+  tutorPayoutMethod?: 'gcash' | 'bank_transfer' | 'cash';
+  tutorPayoutReference?: string;
+  tutorPayoutDate?: string;
+  tutorPayoutNotes?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;

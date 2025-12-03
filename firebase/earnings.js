@@ -92,3 +92,49 @@ export const getTotalEarningsByTutor = async (tutorEmail) => {
     throw error;
   }
 };
+
+// GET EARNINGS FROM PAYMENTS (DYNAMIC)
+// This calculates earnings from the payments collection based on verified payments
+export const getEarningsFromPayments = async (tutorId) => {
+  try {
+    const { getPaymentsByTutorId } = await import('./payments');
+    const payments = await getPaymentsByTutorId(tutorId);
+    
+    const verifiedPayments = payments.filter(p => p.status === 'verified');
+    const totalEarnings = verifiedPayments.reduce((sum, p) => sum + (p.tutorAmount || 0), 0);
+    
+    return {
+      totalEarnings,
+      verifiedPayments: verifiedPayments.length,
+      payments: verifiedPayments
+    };
+  } catch (error) {
+    console.error('Error calculating earnings from payments:', error);
+    throw error;
+  }
+};
+
+// GET MONTHLY EARNINGS FROM PAYMENTS
+export const getMonthlyEarningsFromPayments = async (tutorId, month, year) => {
+  try {
+    const { getPaymentsByTutorId } = await import('./payments');
+    const payments = await getPaymentsByTutorId(tutorId);
+    
+    const monthlyPayments = payments.filter(p => {
+      if (p.status !== 'verified') return false;
+      const paymentDate = new Date(p.verifiedAt || p.createdAt);
+      return paymentDate.getMonth() === month && paymentDate.getFullYear() === year;
+    });
+    
+    const monthlyEarnings = monthlyPayments.reduce((sum, p) => sum + (p.tutorAmount || 0), 0);
+    
+    return {
+      monthlyEarnings,
+      sessionsCount: monthlyPayments.length,
+      payments: monthlyPayments
+    };
+  } catch (error) {
+    console.error('Error calculating monthly earnings:', error);
+    throw error;
+  }
+};

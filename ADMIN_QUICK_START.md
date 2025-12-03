@@ -70,14 +70,9 @@ Once logged in, you have access to:
 - Monitor booking status
 - Handle disputes
 
-### 📈 Analytics (`/admin/analytics`)
-- Detailed platform insights
-- Revenue reports
-- User engagement metrics
-
 ### 💰 Payments (`/admin/payments`)
-- Transaction history
-- Payment processing
+- **Parent Payments Tab**: Transaction history, payment verification, parent payment tracking
+- **Tutor Payouts Tab**: Process payments to tutors, view pending payouts, batch payment processing, payout history tracking
 - Financial reports
 
 ### 🛡️ Moderation (`/admin/moderation`)

@@ -11,11 +11,11 @@ import {
   MessageCircle,
   LayoutDashboard,
   Users,
-  BarChart3,
   CreditCard,
   Shield,
   DollarSign,
   Clock,
+  Send,
 } from "lucide-react"
 
 export function MobileNav() {
@@ -42,7 +42,6 @@ export function MobileNav() {
     admin: [
       { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
       { href: "/admin/users", icon: Users, label: "Users" },
-      { href: "/admin/analytics", icon: BarChart3, label: "Analytics" },
       { href: "/admin/payments", icon: CreditCard, label: "Payments" },
       { href: "/admin/moderation", icon: Shield, label: "Moderation" },
     ],

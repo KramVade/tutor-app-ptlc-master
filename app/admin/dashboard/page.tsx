@@ -240,15 +240,15 @@ export default function AdminDashboard() {
               <ArrowRight className="h-5 w-5 text-muted-foreground" />
             </AirbnbCard>
           </Link>
-          <Link href="/admin/analytics">
+          <Link href="/admin/payments">
             <AirbnbCard hoverable className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-success/10 rounded-xl">
-                  <Calendar className="h-6 w-6 text-success" />
+                <div className="p-3 bg-purple/10 rounded-xl">
+                  <DollarSign className="h-6 w-6 text-purple" />
                 </div>
                 <div>
-                  <p className="font-semibold">Completed Sessions</p>
-                  <p className="text-sm text-muted-foreground">{stats.completedBookings} sessions completed</p>
+                  <p className="font-semibold">Payments & Payouts</p>
+                  <p className="text-sm text-muted-foreground">Manage all payments</p>
                 </div>
               </div>
               <ArrowRight className="h-5 w-5 text-muted-foreground" />

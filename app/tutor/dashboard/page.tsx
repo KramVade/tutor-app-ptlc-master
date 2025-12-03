@@ -23,6 +23,12 @@ export default function TutorDashboard() {
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "tutor")) {
       router.push("/login")
+    } else if (!isLoading && user && user.role === "tutor") {
+      // Check if tutor is pending approval
+      const isPending = localStorage.getItem("ptlcDigitalCoach_pendingApproval")
+      if (isPending === "true") {
+        router.push("/tutor/pending-approval")
+      }
     }
   }, [user, isLoading, router])
 
@@ -44,23 +50,28 @@ export default function TutorDashboard() {
       
       setBookings(bookingsData)
       
-      // Calculate earnings from bookings
+      // Calculate earnings from PTLC payouts (not just verified payments)
+      const { getPaymentsByTutorId } = await import("@/firebase/payments")
+      const paymentsData = await getPaymentsByTutorId(user.id)
+      
       const now = new Date()
       const currentMonth = now.getMonth()
       const currentYear = now.getFullYear()
       
-      const thisMonthBookings = bookingsData.filter((b: any) => {
-        const bookingDate = new Date(b.date)
-        return bookingDate.getMonth() === currentMonth && 
-               bookingDate.getFullYear() === currentYear &&
-               b.status === 'completed'
+      // Get payments that PTLC has actually paid to tutor this month
+      const thisMonthPaid = paymentsData.filter((p: any) => {
+        if (p.tutorPayoutStatus !== 'paid') return false
+        const payoutDate = new Date(p.tutorPayoutDate || p.createdAt)
+        return payoutDate.getMonth() === currentMonth && 
+               payoutDate.getFullYear() === currentYear
       })
       
-      const monthlyEarnings = thisMonthBookings.reduce((sum: number, b: any) => sum + (b.totalPrice || 0), 0)
+      // Calculate actual earnings (money received from PTLC)
+      const monthlyEarnings = thisMonthPaid.reduce((sum: number, p: any) => sum + (p.tutorAmount || 0), 0)
       
       setEarnings({
         thisMonth: monthlyEarnings,
-        sessionsThisMonth: thisMonthBookings.length
+        sessionsThisMonth: thisMonthPaid.length
       })
     } catch (error) {
       console.error('Error loading dashboard data:', error)
