@@ -1,6 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+export const dynamicParams = true
 import { useRouter, useParams } from "next/navigation"
 import { useAuth } from "@/lib/context/auth-context"
 import { PageLayout } from "@/components/layout/page-layout"
