@@ -30,21 +30,21 @@ export default function TutorMessagesPage() {
   return (
     <PageLayout>
       <div className="max-w-7xl mx-auto h-[calc(100vh-64px-80px)] md:h-[calc(100vh-64px)]">
-        <div className="flex h-full border-x border-border">
-          <div className={`w-full md:w-80 border-r border-border ${selectedConversation ? "hidden md:block" : ""}`}>
+        <div className="flex h-full border-x border-border overflow-hidden">
+          <div className={`w-full md:w-80 border-r border-border h-full overflow-hidden ${selectedConversation ? "hidden md:block" : ""}`}>
             <ConversationList selectedId={selectedConversation} onSelect={setSelectedConversation} />
           </div>
 
-          <div className={`flex-1 ${!selectedConversation ? "hidden md:flex" : "flex"}`}>
+          <div className={`flex-1 h-full overflow-hidden ${!selectedConversation ? "hidden md:flex" : "flex"}`}>
             {selectedConversation ? (
-              <div className="flex-1 flex flex-col">
+              <div className="flex-1 flex flex-col h-full">
                 <button
                   onClick={() => setSelectedConversation(null)}
                   className="md:hidden p-4 border-b border-border text-left font-medium"
                 >
                   ← Back to conversations
                 </button>
-                <div className="flex-1">
+                <div className="flex-1 overflow-hidden">
                   <ChatInterface conversationId={selectedConversation} />
                 </div>
               </div>

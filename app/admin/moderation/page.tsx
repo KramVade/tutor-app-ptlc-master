@@ -35,8 +35,11 @@ export default function AdminModerationPage() {
   const { showToast } = useNotification()
   const router = useRouter()
   const [reports, setReports] = useState<Report[]>([])
+  const [flaggedMessages, setFlaggedMessages] = useState<any[]>([])
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
+  const [selectedMessage, setSelectedMessage] = useState<any | null>(null)
   const [showReportModal, setShowReportModal] = useState(false)
+  const [showMessageModal, setShowMessageModal] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
 
@@ -68,6 +71,22 @@ export default function AdminModerationPage() {
       setIsLoading(false)
     }
   }
+
+  const loadFlaggedMessages = async () => {
+    try {
+      const { getFlaggedMessages } = await import("@/firebase/messages")
+      const messages = await getFlaggedMessages()
+      setFlaggedMessages(messages)
+    } catch (error) {
+      console.error("Error loading flagged messages:", error)
+    }
+  }
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      loadFlaggedMessages()
+    }
+  }, [user])
 
   if (authLoading || !user || isLoading) {
     return (
@@ -249,7 +268,7 @@ export default function AdminModerationPage() {
             <TabsTrigger value="reports">
               User Reports ({reports.filter((r) => r.status !== "resolved" && r.status !== "dismissed").length})
             </TabsTrigger>
-            <TabsTrigger value="flagged">Flagged Content (0)</TabsTrigger>
+            <TabsTrigger value="flagged">Flagged Messages ({flaggedMessages.length})</TabsTrigger>
             <TabsTrigger value="resolved">
               Resolved ({reports.filter((r) => r.status === "resolved" || r.status === "dismissed").length})
             </TabsTrigger>
@@ -272,11 +291,110 @@ export default function AdminModerationPage() {
 
           <TabsContent value="flagged">
             <AirbnbCard>
-              <div className="p-8 text-center text-muted-foreground">
-                <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Auto-flagged content detection coming soon</p>
-                <p className="text-sm mt-2">This feature will automatically detect and flag potentially problematic content</p>
-              </div>
+              {flaggedMessages.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50 text-success" />
+                  <p>No flagged messages</p>
+                  <p className="text-sm mt-2">All messages are clean!</p>
+                </div>
+              ) : (
+                <div className="space-y-4 p-4">
+                  {flaggedMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className="p-4 border border-border rounded-lg hover:bg-secondary/50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-semibold">{msg.senderName}</span>
+                            <span className="text-muted-foreground">→</span>
+                            <span className="font-semibold">{msg.receiverName}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(msg.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+
+                          <p className="text-sm mb-3 p-3 bg-secondary rounded">{msg.text}</p>
+
+                          <div className="flex flex-wrap gap-2">
+                            {msg.moderationReasons?.map((reason: string) => {
+                              const { getCategoryDescription } = require("@/lib/moderation/message-moderator")
+                              return (
+                                <span
+                                  key={reason}
+                                  className="px-2 py-1 bg-destructive/10 text-destructive text-xs rounded-full"
+                                >
+                                  {getCategoryDescription(reason)}
+                                </span>
+                              )
+                            })}
+                          </div>
+
+                          {msg.moderationConfidence && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Confidence: {(msg.moderationConfidence * 100).toFixed(1)}%
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2 ml-4">
+                          <AirbnbButton
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                const { approveMessage } = await import("@/firebase/messages")
+                                await approveMessage(msg.id)
+                                await loadFlaggedMessages()
+                                showToast({
+                                  type: "success",
+                                  title: "Message Approved",
+                                  message: "Message has been approved",
+                                })
+                              } catch (error) {
+                                showToast({
+                                  type: "error",
+                                  title: "Error",
+                                  message: "Failed to approve message",
+                                })
+                              }
+                            }}
+                          >
+                            Approve
+                          </AirbnbButton>
+                          <AirbnbButton
+                            size="sm"
+                            variant="destructive"
+                            onClick={async () => {
+                              if (confirm("Delete this message?")) {
+                                try {
+                                  const { deleteMessage } = await import("@/firebase/messages")
+                                  await deleteMessage(msg.id)
+                                  await loadFlaggedMessages()
+                                  showToast({
+                                    type: "success",
+                                    title: "Message Deleted",
+                                    message: "Message has been deleted",
+                                  })
+                                } catch (error) {
+                                  showToast({
+                                    type: "error",
+                                    title: "Error",
+                                    message: "Failed to delete message",
+                                  })
+                                }
+                              }
+                            }}
+                          >
+                            Delete
+                          </AirbnbButton>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </AirbnbCard>
           </TabsContent>
 

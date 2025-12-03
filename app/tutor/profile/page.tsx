@@ -26,6 +26,8 @@ export default function TutorProfilePage() {
     hourlyRate: tutor?.hourlyRate || 50,
     subjects: tutor?.subjects || [],
     location: tutor?.location || "",
+    education: tutor?.education || "",
+    experience: tutor?.experience || "",
   })
 
   const [newSubject, setNewSubject] = useState("")
@@ -64,6 +66,8 @@ export default function TutorProfilePage() {
         hourlyRate: formData.hourlyRate,
         subjects: formData.subjects,
         location: formData.location,
+        education: formData.education,
+        experience: formData.experience,
       })
       
       console.log('✅ Profile updated in Firebase')
@@ -160,6 +164,31 @@ export default function TutorProfilePage() {
             </div>
           </AirbnbCard>
 
+          {/* Education & Experience */}
+          <AirbnbCard>
+            <h2 className="text-xl font-bold mb-4">Education & Experience</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Education</label>
+                <textarea
+                  value={formData.education}
+                  onChange={(e) => setFormData({ ...formData, education: e.target.value })}
+                  className="w-full h-24 px-4 py-3 rounded-lg border border-border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="e.g., Bachelor's in Mathematics, University of XYZ (2018-2022)"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Teaching Experience</label>
+                <textarea
+                  value={formData.experience}
+                  onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
+                  className="w-full h-24 px-4 py-3 rounded-lg border border-border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="e.g., 5 years teaching high school mathematics, 2 years private tutoring"
+                />
+              </div>
+            </div>
+          </AirbnbCard>
+
           {/* Subjects & Rate */}
           <AirbnbCard>
             <h2 className="text-xl font-bold mb-4">Subjects & Pricing</h2>
@@ -190,7 +219,7 @@ export default function TutorProfilePage() {
               </div>
 
               <AirbnbInput
-                label="Hourly Rate ($)"
+                label="Hourly Rate (Php)"
                 type="number"
                 value={formData.hourlyRate}
                 onChange={(e) => setFormData({ ...formData, hourlyRate: Number.parseInt(e.target.value) })}

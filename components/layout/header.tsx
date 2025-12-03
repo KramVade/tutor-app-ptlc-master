@@ -19,6 +19,8 @@ export function Header() {
       { href: "/parent/dashboard", label: "Dashboard" },
       { href: "/parent/tutors", label: "Find Tutors" },
       { href: "/parent/bookings", label: "Bookings" },
+      { href: "/parent/payments", label: "Payments" },
+      { href: "/parent/children", label: "Manage Children" },
       { href: "/parent/messages", label: "Messages" },
     ],
     tutor: [

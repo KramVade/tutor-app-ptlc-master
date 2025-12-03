@@ -10,13 +10,12 @@ import { FilterPanel } from "@/components/tutor/filter-panel"
 import { TutorCardSkeleton } from "@/components/ui/skeleton"
 import { AirbnbButton } from "@/components/ui/airbnb-button"
 import { AirbnbInput } from "@/components/ui/airbnb-input"
-import { Search, SlidersHorizontal, MapPin } from "lucide-react"
+import { Search, SlidersHorizontal } from "lucide-react"
 
 export default function TutorsPage() {
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const [search, setSearch] = useState("")
-  const [location, setLocation] = useState("")
   const [showFilters, setShowFilters] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [tutors, setTutors] = useState<any[]>([])
@@ -63,15 +62,13 @@ export default function TutorsPage() {
       tutor.subjects.some((s) => s.toLowerCase().includes(search.toLowerCase())) ||
       tutor.bio.toLowerCase().includes(search.toLowerCase())
 
-    const matchesLocation = !location || tutor.location.toLowerCase().includes(location.toLowerCase())
-
     const matchesSubjects = filters.subjects.length === 0 || filters.subjects.some((s) => tutor.subjects.includes(s))
 
     const matchesPrice = tutor.hourlyRate >= filters.priceRange[0] && tutor.hourlyRate <= filters.priceRange[1]
 
     const matchesRating = tutor.rating >= filters.rating
 
-    return matchesSearch && matchesLocation && matchesSubjects && matchesPrice && matchesRating
+    return matchesSearch && matchesSubjects && matchesPrice && matchesRating
   })
 
   if (authLoading || !user) {
@@ -102,14 +99,6 @@ export default function TutorsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 leftIcon={<Search className="h-5 w-5" />}
-              />
-            </div>
-            <div className="md:w-64">
-              <AirbnbInput
-                placeholder="Location"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                leftIcon={<MapPin className="h-5 w-5" />}
               />
             </div>
             <AirbnbButton
@@ -148,7 +137,6 @@ export default function TutorsPage() {
               variant="outline"
               onClick={() => {
                 setSearch("")
-                setLocation("")
                 setFilters({
                   subjects: [],
                   priceRange: [0, 200],

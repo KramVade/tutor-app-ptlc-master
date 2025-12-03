@@ -29,8 +29,6 @@ const subjects = [
   "Music",
 ]
 
-const availabilityOptions = ["Morning (8AM-12PM)", "Afternoon (12PM-5PM)", "Evening (5PM-9PM)", "Weekends"]
-
 export function FilterPanel({ isOpen, onClose, filters, onApply }: FilterPanelProps) {
   const [localFilters, setLocalFilters] = useState(filters)
 
@@ -40,15 +38,6 @@ export function FilterPanel({ isOpen, onClose, filters, onApply }: FilterPanelPr
       subjects: prev.subjects.includes(subject)
         ? prev.subjects.filter((s) => s !== subject)
         : [...prev.subjects, subject],
-    }))
-  }
-
-  const handleAvailabilityToggle = (option: string) => {
-    setLocalFilters((prev) => ({
-      ...prev,
-      availability: prev.availability.includes(option)
-        ? prev.availability.filter((a) => a !== option)
-        : [...prev.availability, option],
     }))
   }
 
@@ -146,26 +135,7 @@ export function FilterPanel({ isOpen, onClose, filters, onApply }: FilterPanelPr
             </div>
           </div>
 
-          {/* Availability */}
-          <div>
-            <h3 className="font-semibold mb-4">Availability</h3>
-            <div className="space-y-2">
-              {availabilityOptions.map((option) => (
-                <label
-                  key={option}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-secondary transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    checked={localFilters.availability.includes(option)}
-                    onChange={() => handleAvailabilityToggle(option)}
-                    className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
-                  />
-                  <span className="text-sm">{option}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+
         </div>
 
         {/* Footer */}

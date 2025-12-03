@@ -211,10 +211,45 @@ export async function updateBookingStatus(bookingId: string, status: Booking['st
       updatedAt: new Date().toISOString()
     });
     
-    // Get booking details for notification
+    // Get booking details for notification and payment
     const bookingSnap = await getDoc(bookingRef);
     if (bookingSnap.exists()) {
       const booking = bookingSnap.data() as Booking;
+      
+      // Create payment record when booking is confirmed
+      if (status === 'confirmed') {
+        try {
+          const { createPaymentForBooking } = await import('./payments');
+          await createPaymentForBooking({
+            bookingId,
+            parentId: booking.parentId,
+            parentEmail: booking.parentEmail,
+            parentName: booking.parentName,
+            tutorId: booking.tutorId,
+            tutorEmail: booking.tutorEmail,
+            tutorName: booking.tutorName,
+            childName: booking.childName,
+            subject: booking.subject,
+            sessionDate: booking.date,
+            sessionTime: booking.time,
+            totalPrice: booking.totalPrice
+          });
+          console.log('✅ Payment record created for confirmed booking');
+        } catch (paymentError) {
+          console.error('Error creating payment record:', paymentError);
+        }
+      }
+      
+      // Mark payment as due when booking is completed
+      if (status === 'completed') {
+        try {
+          const { markPaymentAsDue } = await import('./payments');
+          await markPaymentAsDue(bookingId);
+          console.log('✅ Payment marked as due for completed booking');
+        } catch (paymentError) {
+          console.error('Error marking payment as due:', paymentError);
+        }
+      }
       
       // Create notification for parent about status change
       try {
@@ -235,6 +270,16 @@ export async function updateBookingStatus(bookingId: string, status: Booking['st
             booking.parentId,
             'booking_cancelled',
             {
+              date: booking.date,
+              time: booking.time
+            }
+          );
+        } else if (status === 'completed') {
+          await createBookingNotification(
+            booking.parentId,
+            'session_completed',
+            {
+              tutorName: booking.tutorName,
               date: booking.date,
               time: booking.time
             }

@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
 import { useAuth } from "@/lib/context/auth-context"
+import { useNotification } from "@/lib/context/notification-context"
 import { AirbnbButton } from "../ui/airbnb-button"
 import { cn } from "@/lib/utils"
 import { Send, Paperclip, ImageIcon } from "lucide-react"
@@ -15,6 +16,7 @@ interface ChatInterfaceProps {
 
 export function ChatInterface({ conversationId }: ChatInterfaceProps) {
   const { user } = useAuth()
+  const { showToast } = useNotification()
   const [messages, setMessages] = useState<Message[]>([])
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [newMessage, setNewMessage] = useState("")
@@ -30,8 +32,19 @@ export function ChatInterface({ conversationId }: ChatInterfaceProps) {
   }, [conversationId])
 
   useEffect(() => {
+    // Scroll to bottom when messages change
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  useEffect(() => {
+    // Scroll to bottom immediately on mount and when loading completes
+    if (!isLoading && messages.length > 0) {
+      // Use setTimeout to ensure DOM is fully rendered
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" })
+      }, 100)
+    }
+  }, [isLoading])
 
   const loadConversation = async () => {
     try {
@@ -109,8 +122,23 @@ export function ChatInterface({ conversationId }: ChatInterfaceProps) {
       
       // Reload messages to show new message
       await loadMessages()
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error sending message:', error)
+      
+      // Show user-friendly error message with toast
+      if (error.message?.includes('Message blocked')) {
+        showToast({
+          type: "error",
+          title: "Message Blocked",
+          message: "Your message was blocked due to inappropriate content. Please review our community guidelines.",
+        })
+      } else {
+        showToast({
+          type: "error",
+          title: "Failed to Send",
+          message: "Failed to send message. Please try again.",
+        })
+      }
     } finally {
       setIsSending(false)
     }

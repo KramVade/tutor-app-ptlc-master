@@ -29,6 +29,7 @@ export function MobileNav() {
       { href: "/parent/dashboard", icon: Home, label: "Home" },
       { href: "/parent/tutors", icon: Search, label: "Search" },
       { href: "/parent/bookings", icon: Calendar, label: "Bookings" },
+      { href: "/parent/payments", icon: CreditCard, label: "Payments" },
       { href: "/parent/messages", icon: MessageCircle, label: "Messages" },
     ],
     tutor: [

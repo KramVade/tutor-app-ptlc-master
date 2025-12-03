@@ -97,6 +97,7 @@ export default function ChildrenPage() {
         gradeLevel: formData.gradeLevel,
         parentId: user.id,
         parentEmail: user.email,
+        status: 'pending' as const,
         createdAt: new Date().toISOString(),
       }
 
@@ -185,6 +186,17 @@ export default function ChildrenPage() {
   return (
     <PageLayout>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Back to Dashboard */}
+        <div className="mb-6">
+          <AirbnbButton
+            variant="ghost"
+            onClick={() => router.push("/parent/dashboard")}
+            leftIcon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>}
+          >
+            Back to Dashboard
+          </AirbnbButton>
+        </div>
+
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold">My Children</h1>

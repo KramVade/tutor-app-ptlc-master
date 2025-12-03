@@ -168,39 +168,7 @@ export default function ParentDashboard() {
               )}
             </div>
 
-            {/* Quick Actions */}
-            <div className="mt-8">
-              <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
-              <div className="space-y-2">
-                <Link href="/parent/tutors" className="block">
-                  <AirbnbCard hoverable className="flex items-center gap-4">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <BookOpen className="h-5 w-5 text-primary" />
-                    </div>
-                    <span className="font-medium">Find a Tutor</span>
-                    <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
-                  </AirbnbCard>
-                </Link>
-                <Link href="/parent/children" className="block">
-                  <AirbnbCard hoverable className="flex items-center gap-4">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <Users className="h-5 w-5 text-primary" />
-                    </div>
-                    <span className="font-medium">Manage Children</span>
-                    <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
-                  </AirbnbCard>
-                </Link>
-                <Link href="/parent/messages" className="block">
-                  <AirbnbCard hoverable className="flex items-center gap-4">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <Users className="h-5 w-5 text-primary" />
-                    </div>
-                    <span className="font-medium">Messages</span>
-                    <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
-                  </AirbnbCard>
-                </Link>
-              </div>
-            </div>
+
           </div>
         </div>
       </div>

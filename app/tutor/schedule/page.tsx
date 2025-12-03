@@ -7,7 +7,7 @@ import { useNotification } from "@/lib/context/notification-context"
 import { PageLayout } from "@/components/layout/page-layout"
 import { AirbnbCard } from "@/components/ui/airbnb-card"
 import { AirbnbButton } from "@/components/ui/airbnb-button"
-import { Calendar, ChevronLeft, ChevronRight, Clock, User, BookOpen } from "lucide-react"
+import { Calendar, ChevronLeft, ChevronRight, Clock, User, BookOpen, X } from "lucide-react"
 import { getBookingsByTutorId, type Booking } from "@/firebase/bookings"
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns"
 
@@ -21,6 +21,7 @@ export default function TutorSchedulePage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "tutor")) {
@@ -88,10 +89,18 @@ export default function TutorSchedulePage() {
     }).sort((a, b) => a.time.localeCompare(b.time))
   }
 
-  const timeSlots = [
-    "08:00", "09:00", "10:00", "11:00", "12:00", 
-    "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"
-  ]
+  const handleDateClick = (day: Date) => {
+    const dayBookings = getBookingsForDay(day)
+    if (dayBookings.length > 0) {
+      setSelectedDate(day)
+    }
+  }
+
+  const closeModal = () => {
+    setSelectedDate(null)
+  }
+
+  const selectedDateBookings = selectedDate ? getBookingsForDay(selectedDate) : []
 
   return (
     <PageLayout>
@@ -129,17 +138,20 @@ export default function TutorSchedulePage() {
           {weekDays.map((day, index) => {
             const dayBookings = getBookingsForDay(day)
             const isToday = isSameDay(day, new Date())
+            const hasBookings = dayBookings.length > 0
 
             return (
               <AirbnbCard 
                 key={index} 
-                className={isToday ? "border-2 border-primary" : ""}
+                className={`${isToday ? "border-2 border-primary" : ""} ${hasBookings ? "cursor-pointer hover:shadow-lg transition-shadow" : ""}`}
+                onClick={() => hasBookings && handleDateClick(day)}
               >
                 <div className="mb-4">
                   <p className="text-sm text-muted-foreground">{format(day, "EEE")}</p>
                   <p className={`text-2xl font-bold ${isToday ? "text-primary" : ""}`}>
                     {format(day, "d")}
                   </p>
+                  <p className="text-xs text-muted-foreground">{format(day, "MMM")}</p>
                 </div>
 
                 <div className="space-y-2">
@@ -149,47 +161,36 @@ export default function TutorSchedulePage() {
                       <p className="text-xs">No sessions</p>
                     </div>
                   ) : (
-                    dayBookings.map((booking) => (
-                      <div
-                        key={booking.id}
-                        className={`p-3 rounded-lg border-l-4 ${
-                          booking.status === 'confirmed' 
-                            ? 'bg-primary/5 border-primary' 
-                            : 'bg-warning/5 border-warning'
-                        }`}
-                      >
-                        <div className="flex items-start gap-2 mb-2">
-                          <Clock className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm">{booking.time}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {booking.duration}h session
-                            </p>
+                    <>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-semibold text-primary">
+                          {dayBookings.length} {dayBookings.length === 1 ? 'Session' : 'Sessions'}
+                        </span>
+                        <span className="text-xs text-muted-foreground">Click to view</span>
+                      </div>
+                      {dayBookings.slice(0, 2).map((booking) => (
+                        <div
+                          key={booking.id}
+                          className={`p-2 rounded-lg border-l-4 ${
+                            booking.status === 'confirmed' 
+                              ? 'bg-primary/5 border-primary' 
+                              : 'bg-warning/5 border-warning'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                            <p className="font-semibold text-xs">{booking.time}</p>
                           </div>
-                        </div>
-
-                        <div className="flex items-start gap-2 mb-2">
-                          <User className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{booking.childName}</p>
-                            {booking.childGrade && (
-                              <p className="text-xs text-muted-foreground">Grade {booking.childGrade}</p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-2">
-                          <BookOpen className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                          <p className="font-medium text-xs truncate">{booking.childName}</p>
                           <p className="text-xs text-muted-foreground truncate">{booking.subject}</p>
                         </div>
-
-                        {booking.status === 'pending' && (
-                          <div className="mt-2 pt-2 border-t border-border">
-                            <p className="text-xs text-warning font-medium">Pending Confirmation</p>
-                          </div>
-                        )}
-                      </div>
-                    ))
+                      ))}
+                      {dayBookings.length > 2 && (
+                        <p className="text-xs text-center text-muted-foreground pt-2">
+                          +{dayBookings.length - 2} more
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </AirbnbCard>
@@ -197,59 +198,118 @@ export default function TutorSchedulePage() {
           })}
         </div>
 
-        {/* Time Slot View */}
-        <div className="mt-8">
-          <h2 className="text-xl font-bold mb-4">Time Slot View</h2>
-          <AirbnbCard>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left p-3 font-semibold">Time</th>
-                    {weekDays.map((day, index) => (
-                      <th key={index} className="text-center p-3 font-semibold min-w-[120px]">
-                        <div>{format(day, "EEE")}</div>
-                        <div className="text-sm font-normal text-muted-foreground">
-                          {format(day, "MMM d")}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {timeSlots.map((time) => (
-                    <tr key={time} className="border-b border-border hover:bg-secondary/50">
-                      <td className="p-3 font-medium text-sm">{time}</td>
-                      {weekDays.map((day, dayIndex) => {
-                        const dayBookings = getBookingsForDay(day)
-                        const timeBooking = dayBookings.find(b => b.time === time)
+        {/* Day Details Modal */}
+        {selectedDate && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={closeModal}>
+            <div className="bg-background rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-border">
+                <div>
+                  <h2 className="text-2xl font-bold">
+                    {format(selectedDate, "EEEE, MMMM d, yyyy")}
+                  </h2>
+                  <p className="text-muted-foreground mt-1">
+                    {selectedDateBookings.length} {selectedDateBookings.length === 1 ? 'session' : 'sessions'} scheduled
+                  </p>
+                </div>
+                <button
+                  onClick={closeModal}
+                  className="p-2 hover:bg-secondary rounded-full transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
 
-                        return (
-                          <td key={dayIndex} className="p-2">
-                            {timeBooking ? (
-                              <div
-                                className={`p-2 rounded text-xs ${
-                                  timeBooking.status === 'confirmed'
-                                    ? 'bg-primary/10 border border-primary/20'
-                                    : 'bg-warning/10 border border-warning/20'
-                                }`}
-                              >
-                                <p className="font-semibold truncate">{timeBooking.childName}</p>
-                                <p className="text-muted-foreground truncate">{timeBooking.subject}</p>
-                              </div>
-                            ) : (
-                              <div className="h-12" />
-                            )}
-                          </td>
-                        )
-                      })}
-                    </tr>
+              {/* Modal Content */}
+              <div className="p-6 overflow-y-auto max-h-[calc(80vh-100px)]">
+                <div className="space-y-4">
+                  {selectedDateBookings.map((booking) => (
+                    <div
+                      key={booking.id}
+                      className={`p-6 rounded-xl border-2 ${
+                        booking.status === 'confirmed' 
+                          ? 'bg-primary/5 border-primary/20' 
+                          : 'bg-warning/5 border-warning/20'
+                      }`}
+                    >
+                      {/* Time */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-3 bg-background rounded-lg">
+                          <Clock className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">{booking.time}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {booking.duration} hour {booking.duration === 1 ? 'session' : 'sessions'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Student Info */}
+                      <div className="flex items-start gap-3 mb-4 p-4 bg-background rounded-lg">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <User className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-lg">{booking.childName}</p>
+                          {booking.childGrade && (
+                            <p className="text-sm text-muted-foreground">Grade {booking.childGrade}</p>
+                          )}
+                          {booking.childAge && (
+                            <p className="text-sm text-muted-foreground">{booking.childAge} years old</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Subject */}
+                      <div className="flex items-center gap-3 mb-4 p-4 bg-background rounded-lg">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <BookOpen className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Subject</p>
+                          <p className="font-semibold">{booking.subject}</p>
+                        </div>
+                      </div>
+
+                      {/* Parent Info */}
+                      <div className="p-4 bg-background rounded-lg mb-4">
+                        <p className="text-sm text-muted-foreground mb-1">Parent</p>
+                        <p className="font-medium">{booking.parentName}</p>
+                        <p className="text-sm text-muted-foreground">{booking.parentEmail}</p>
+                      </div>
+
+                      {/* Notes */}
+                      {booking.notes && (
+                        <div className="p-4 bg-background rounded-lg mb-4">
+                          <p className="text-sm text-muted-foreground mb-1">Notes</p>
+                          <p className="text-sm">{booking.notes}</p>
+                        </div>
+                      )}
+
+                      {/* Status Badge */}
+                      <div className="flex items-center justify-between pt-4 border-t border-border">
+                        <div>
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                            booking.status === 'confirmed'
+                              ? 'bg-primary/10 text-primary'
+                              : 'bg-warning/10 text-warning'
+                          }`}>
+                            {booking.status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending'}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Total</p>
+                          <p className="text-xl font-bold text-primary">₱{booking.totalPrice}</p>
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              </div>
             </div>
-          </AirbnbCard>
-        </div>
+          </div>
+        )}
 
         {/* Legend */}
         <div className="mt-6 flex items-center gap-6 text-sm">

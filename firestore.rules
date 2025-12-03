@@ -93,9 +93,28 @@ service cloud.firestore {
     
     // Payments collection
     match /payments/{paymentId} {
+      // Parents and tutors can read their own payments
       allow read: if isSignedIn() && 
         (resource.data.parentId == request.auth.uid || 
          resource.data.tutorId == request.auth.uid);
+      
+      // System creates payments
+      allow create: if isSignedIn();
+      
+      // Parents can update their own payments (submit proof)
+      // Tutors can update payments for verification
+      allow update: if isSignedIn() && 
+        (resource.data.parentId == request.auth.uid || 
+         resource.data.tutorId == request.auth.uid);
+    }
+    
+    // Earnings collection
+    match /earnings/{earningId} {
+      // Tutors can read their own earnings
+      allow read: if isSignedIn() && 
+        resource.data.tutorId == request.auth.uid;
+      
+      // System creates earnings
       allow create: if isSignedIn();
     }
     

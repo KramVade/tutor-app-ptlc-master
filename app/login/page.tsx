@@ -122,13 +122,26 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right Side - Image */}
-      <div className="hidden lg:block lg:w-1/2 bg-primary/5 relative">
-        <div className="absolute inset-0 flex items-center justify-center p-12">
+      {/* Right Side - Background Image */}
+      <div 
+        className="hidden lg:block lg:w-1/2 relative bg-cover bg-center"
+        style={{
+          backgroundImage: "url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=2022&auto=format&fit=crop')"
+        }}
+      >
+        {/* White-Pinkish Tint Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/85 via-pink-60/80 to-rose-55/75" />
+        
+        {/* Content */}
+        <div className="relative h-full flex items-center justify-center p-12">
           <div className="max-w-lg text-center">
-            <img src="/education-tutoring-illustration.jpg" alt="Tutoring" className="w-full max-w-sm mx-auto mb-8" />
-            <h2 className="text-2xl font-bold mb-4">Personalized learning for every student</h2>
-            <p className="text-muted-foreground">
+            <div className="mb-8">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 backdrop-blur-sm rounded-2xl mb-6">
+                <GraduationCap className="h-10 w-10 text-primary" />
+              </div>
+            </div>
+            <h2 className="text-3xl font-bold mb-4 text-foreground">Personalized learning for every student</h2>
+            <p className="text-lg text-muted-foreground">
               Connect with expert tutors who can help your child reach their full potential.
             </p>
           </div>

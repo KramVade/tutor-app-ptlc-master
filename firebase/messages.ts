@@ -56,6 +56,10 @@ export interface Message {
   text: string;
   isRead: boolean;
   readAt?: string;
+  flagged?: boolean;
+  moderationReasons?: string[];
+  moderationConfidence?: number;
+  approvedAt?: string;
   attachments?: {
     name: string;
     url: string;
@@ -75,6 +79,7 @@ export interface Message {
 
 export async function getConversationsByUserId(userId: string) {
   try {
+    if (!db) throw new Error('Firestore not initialized');
     const conversationsRef = collection(db, CONVERSATIONS_COLLECTION);
     // Simplified query - just filter by participants, sort in memory
     const q = query(
@@ -102,6 +107,7 @@ export async function getConversationsByUserId(userId: string) {
 
 export async function getConversationBetweenUsers(userId1: string, userId2: string) {
   try {
+    if (!db) throw new Error('Firestore not initialized');
     const conversationsRef = collection(db, CONVERSATIONS_COLLECTION);
     const q = query(
       conversationsRef,
@@ -131,6 +137,7 @@ export async function getConversationBetweenUsers(userId1: string, userId2: stri
 
 export async function createConversation(conversationData: Omit<Conversation, 'id'>) {
   try {
+    if (!db) throw new Error('Firestore not initialized');
     const conversationsRef = collection(db, CONVERSATIONS_COLLECTION);
     const docRef = await addDoc(conversationsRef, {
       ...conversationData,
@@ -147,6 +154,7 @@ export async function createConversation(conversationData: Omit<Conversation, 'i
 
 export async function updateConversation(conversationId: string, data: Partial<Conversation>) {
   try {
+    if (!db) throw new Error('Firestore not initialized');
     const conversationRef = doc(db, CONVERSATIONS_COLLECTION, conversationId);
     await updateDoc(conversationRef, {
       ...data,
@@ -160,6 +168,7 @@ export async function updateConversation(conversationId: string, data: Partial<C
 
 export async function markConversationAsRead(conversationId: string, userId: string) {
   try {
+    if (!db) throw new Error('Firestore not initialized');
     const conversationRef = doc(db, CONVERSATIONS_COLLECTION, conversationId);
     await updateDoc(conversationRef, {
       [`unreadCount.${userId}`]: 0,
@@ -175,6 +184,7 @@ export async function markConversationAsRead(conversationId: string, userId: str
 
 export async function getMessagesByConversationId(conversationId: string, limitCount: number = 50) {
   try {
+    if (!db) throw new Error('Firestore not initialized');
     const messagesRef = collection(db, MESSAGES_COLLECTION);
     // Simplified query - just filter by conversationId, sort in memory
     const q = query(
@@ -209,12 +219,62 @@ export async function getMessagesByConversationId(conversationId: string, limitC
 
 export async function sendMessage(messageData: Omit<Message, 'id'>) {
   try {
+    if (!db) throw new Error('Firestore not initialized');
+    
+    // Moderate the message before sending
+    const { moderateMessage, shouldAutoBlock } = await import('@/lib/moderation/message-moderator');
+    const moderation = await moderateMessage(messageData.text);
+    
+    // Block high-severity content
+    if (shouldAutoBlock(moderation)) {
+      // Notify admins about blocked message attempt
+      try {
+        const { addNotification } = await import('./notifications');
+        const { getCategoryDescription } = await import('@/lib/moderation/message-moderator');
+        
+        // Get all admin users
+        const usersRef = collection(db, 'users');
+        const adminsQuery = query(usersRef, where('role', '==', 'admin'));
+        const adminsSnapshot = await getDocs(adminsQuery);
+        
+        // Notify each admin
+        const reasonDescriptions = moderation.reasons.map(getCategoryDescription).join(', ');
+        for (const adminDoc of adminsSnapshot.docs) {
+          await addNotification({
+            userId: adminDoc.id,
+            type: 'system',
+            title: '🚫 Message Blocked',
+            message: `${messageData.senderName} attempted to send: "${messageData.text.substring(0, 50)}..." - Blocked for: ${reasonDescriptions}`,
+            read: false,
+            createdAt: new Date().toISOString()
+          });
+        }
+      } catch (adminNotifError) {
+        console.error('Error notifying admins of blocked message:', adminNotifError);
+      }
+      
+      throw new Error(
+        `Message blocked: ${moderation.reasons.join(", ")}`
+      );
+    }
+    
     const messagesRef = collection(db, MESSAGES_COLLECTION);
-    const docRef = await addDoc(messagesRef, {
+    
+    // Prepare message data (only include defined values)
+    const messageToSave: any = {
       ...messageData,
       isRead: false,
+      flagged: !moderation.allowed,
+      moderationReasons: moderation.reasons,
       createdAt: new Date().toISOString()
-    });
+    };
+    
+    // Only add moderationConfidence if it exists
+    if (moderation.confidence !== undefined) {
+      messageToSave.moderationConfidence = moderation.confidence;
+    }
+    
+    const docRef = await addDoc(messagesRef, messageToSave);
     
     // Update conversation with last message
     await updateConversation(messageData.conversationId, {
@@ -240,6 +300,32 @@ export async function sendMessage(messageData: Omit<Message, 'id'>) {
       console.error('Error creating message notification:', notifError);
     }
     
+    // If message is flagged, notify admins
+    if (!moderation.allowed) {
+      try {
+        const { addNotification } = await import('./notifications');
+        // Get all admin users
+        const { collection: firestoreCollection, getDocs: getFirestoreDocs, query: firestoreQuery, where: firestoreWhere } = await import('firebase/firestore');
+        const usersRef = firestoreCollection(db, 'users');
+        const adminsQuery = firestoreQuery(usersRef, firestoreWhere('role', '==', 'admin'));
+        const adminsSnapshot = await getFirestoreDocs(adminsQuery);
+        
+        // Notify each admin
+        for (const adminDoc of adminsSnapshot.docs) {
+          await addNotification({
+            userId: adminDoc.id,
+            type: 'system',
+            title: 'Flagged Message',
+            message: `Message from ${messageData.senderName} flagged: ${moderation.reasons.join(", ")}`,
+            read: false,
+            createdAt: new Date().toISOString()
+          });
+        }
+      } catch (adminNotifError) {
+        console.error('Error notifying admins:', adminNotifError);
+      }
+    }
+    
     return docRef.id;
   } catch (error) {
     console.error('Error sending message:', error);
@@ -249,6 +335,7 @@ export async function sendMessage(messageData: Omit<Message, 'id'>) {
 
 async function incrementUnreadCount(conversationId: string, userId: string): Promise<number> {
   try {
+    if (!db) return 1;
     const conversationRef = doc(db, CONVERSATIONS_COLLECTION, conversationId);
     const conversationSnap = await getDoc(conversationRef);
     
@@ -267,6 +354,7 @@ async function incrementUnreadCount(conversationId: string, userId: string): Pro
 
 export async function markMessageAsRead(messageId: string) {
   try {
+    if (!db) throw new Error('Firestore not initialized');
     const messageRef = doc(db, MESSAGES_COLLECTION, messageId);
     await updateDoc(messageRef, {
       isRead: true,
@@ -281,6 +369,7 @@ export async function markMessageAsRead(messageId: string) {
 
 export async function markAllMessagesAsRead(conversationId: string, userId: string) {
   try {
+    if (!db) throw new Error('Firestore not initialized');
     const messagesRef = collection(db, MESSAGES_COLLECTION);
     const q = query(
       messagesRef,
@@ -309,6 +398,7 @@ export async function markAllMessagesAsRead(conversationId: string, userId: stri
 
 export async function deleteMessage(messageId: string) {
   try {
+    if (!db) throw new Error('Firestore not initialized');
     const messageRef = doc(db, MESSAGES_COLLECTION, messageId);
     await deleteDoc(messageRef);
   } catch (error) {
@@ -328,6 +418,52 @@ export async function getUnreadMessageCount(userId: string) {
   } catch (error) {
     console.error('Error getting unread count:', error);
     return 0;
+  }
+}
+
+// Get flagged messages for admin moderation
+export async function getFlaggedMessages() {
+  try {
+    if (!db) throw new Error('Firestore not initialized');
+    const messagesRef = collection(db, MESSAGES_COLLECTION);
+    const q = query(
+      messagesRef,
+      where('flagged', '==', true)
+    );
+    const snapshot = await getDocs(q);
+    
+    let messages = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Message[];
+    
+    // Sort by createdAt (newest first)
+    messages = messages.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+    
+    return messages;
+  } catch (error) {
+    console.error('Error fetching flagged messages:', error);
+    throw error;
+  }
+}
+
+// Approve a flagged message (remove flag)
+export async function approveMessage(messageId: string) {
+  try {
+    if (!db) throw new Error('Firestore not initialized');
+    const messageRef = doc(db, MESSAGES_COLLECTION, messageId);
+    await updateDoc(messageRef, {
+      flagged: false,
+      approvedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error approving message:', error);
+    throw error;
   }
 }
 
