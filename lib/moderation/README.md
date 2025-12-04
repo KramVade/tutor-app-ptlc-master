@@ -1,19 +1,44 @@
 # Message Moderation System
 
+> **🆕 ENHANCED v2.0**: Now includes comprehensive sexual content detection with 100+ patterns across 10 categories to protect users, especially minors, from inappropriate content, grooming, and harassment.
+
 A comprehensive message-flagging system that combines AI-based moderation (OpenAI) with custom rule-based checks to detect inappropriate content in messages.
 
 ## Features
 
 ### Flagged Categories
 
-1. **Sexual Content** - Sexual or sexually suggestive content
-2. **Harassment** - Harmful, threatening, or abusive language
-3. **Grooming** - Inappropriate contact (grooming, solicitation)
+1. **Sexual Content** - Sexual or sexually suggestive content (100+ patterns)
+   - Direct sexual requests (nudes, explicit photos)
+   - Sexual comments and descriptions
+   - Sexual harassment and innuendos
+   - Sexualized role-play or fantasies
+   - Inappropriate comments about appearance
+2. **Grooming** - Inappropriate contact with minors
+   - Secrecy requests ("don't tell your parents")
+   - Boundary violations ("you're mature for your age")
+   - Private meetup requests
+3. **Harassment** - Harmful, threatening, or abusive language
 4. **Hate Speech** - Hate speech or bullying
 5. **Off-Platform Payment** - Messages encouraging payment outside the platform
 6. **Contact Exchange** - Attempting to share personal contact information
 7. **External Links** - Sharing external websites or links
 8. **Spam** - Spam or suspicious advertising
+9. **Threatening** - Threats, violence, or harmful content
+10. **Sensitive Info** - Sharing sensitive personal information
+
+### Enhanced Detection (v2.0)
+
+The system now includes **100+ sophisticated patterns** specifically designed to detect:
+- Direct sexual requests and explicit content
+- Grooming behavior and boundary violations
+- Sexual harassment and innuendos
+- Inappropriate compliments and comments
+- Boundary-crossing personal questions
+- Sexualized role-play and fantasies
+- And much more...
+
+See [SEXUAL_CONTENT_MODERATION.md](../../SEXUAL_CONTENT_MODERATION.md) for full details.
 
 ### Detection Methods
 

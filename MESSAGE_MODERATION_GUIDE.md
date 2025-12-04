@@ -208,23 +208,65 @@ export default function ModerationPage() {
 
 ## Flagged Categories
 
+> **🆕 ENHANCED SEXUAL CONTENT DETECTION**: The system now includes 100+ patterns across 10 comprehensive categories to detect sexual content, grooming, and harassment. See [SEXUAL_CONTENT_MODERATION.md](./SEXUAL_CONTENT_MODERATION.md) for full details.
+
 ### High Severity (Auto-Block)
-- **Sexual Content**: Sexual or sexually suggestive content
+- **Sexual Content**: Sexual or sexually suggestive content (100+ patterns)
+  - Direct sexual requests (nudes, explicit photos)
+  - Sexual comments and descriptions
+  - Sexual harassment and innuendos
+  - Sexualized role-play or fantasies
+  - Inappropriate comments about appearance
 - **Grooming**: Inappropriate contact with minors
+  - Secrecy requests ("don't tell your parents")
+  - Boundary violations ("you're mature for your age")
+  - Private meetup requests
 - **Threatening**: Threatening or violent language
 - **Violence**: Violent or graphic content
 - **Hate Speech**: Hate speech or discriminatory language
-
-### Medium Severity (Flag for Review)
+- **Harassment**: Profanity, insults, bullying, or abusive language
 - **Off-Platform Payment**: Attempting to arrange payment outside the platform
 - **Contact Exchange**: Sharing personal contact information
-- **Harassment**: Abusive or harassing language
+- **Sensitive Info**: Sharing sensitive personal information
 
-### Low Severity (Log Only)
+### Medium Severity (Flag for Review)
 - **External Links**: Sharing external websites
 - **Spam**: Spam or suspicious advertising
 
+### Quick Reference
+For a quick reference guide on what gets blocked and admin actions, see [MODERATION_QUICK_REFERENCE.md](./MODERATION_QUICK_REFERENCE.md)
+
 ## Detection Examples
+
+### Sexual Content (NEW - Enhanced Detection)
+```
+❌ "Send me nudes"
+❌ "You look so sexy in your profile picture"
+❌ "Want to have some fun later?"
+❌ "You're too cute to be just a student"
+❌ "I had a dirty dream about you"
+❌ "Just kidding... unless you want to ;)"
+❌ "What are you wearing right now?"
+❌ "Imagine we're alone in a room..."
+❌ "Your lips look kissable"
+❌ "I bet you look amazing in lingerie"
+✅ "Thank you for the great tutoring session!"
+✅ "My daughter really enjoyed the lesson"
+```
+
+### Grooming & Boundary Violations
+```
+❌ "Don't tell your parents about this conversation"
+❌ "This is our little secret"
+❌ "You're very mature for your age"
+❌ "Can you show me what you're wearing?"
+❌ "Let's video call... just us"
+❌ "Let's meet in private"
+❌ "Come to my place; nobody will know"
+❌ "I want to hug you when we meet"
+✅ "I look forward to our tutoring session"
+✅ "See you at the scheduled time"
+```
 
 ### Off-Platform Payment
 ```
@@ -252,13 +294,14 @@ export default function ModerationPage() {
 ✅ "I have 5 years of experience"
 ```
 
-### Grooming
+### Harassment & Threats
 ```
-❌ "Let's meet alone without your parents"
-❌ "Don't tell anyone about this"
-❌ "This is our little secret"
-❌ "You're special to me"
-✅ "I look forward to our tutoring session"
+❌ "You're an idiot and I hate you"
+❌ "Your kid is stupid"
+❌ "I'll hurt you if you don't comply"
+❌ "You're worthless and ugly"
+✅ "I respectfully disagree"
+✅ "Let's discuss this professionally"
 ```
 
 ## Testing

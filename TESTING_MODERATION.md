@@ -1,5 +1,7 @@
 # Testing Message Moderation System
 
+> **🆕 ENHANCED**: Now includes comprehensive sexual content detection across 10 categories with 100+ patterns.
+
 ## Quick Test Guide
 
 ### Method 1: Test in Your Running App
@@ -28,11 +30,27 @@
    ```
 
    **🚫 Should BLOCK (High Severity)**
+   
+   *Sexual Content:*
+   ```
+   Send me nudes
+   You look so sexy
+   Want to have some fun later?
+   Don't tell your parents about this
+   Let's meet in private
+   What are you wearing right now?
+   ```
+   
+   *Off-Platform Payment:*
    ```
    Can you pay me via GCash instead?
    Let's do the payment outside the app
    Pay me directly through PayPal
    I prefer bank transfer to avoid fees
+   ```
+   
+   *Contact Exchange:*
+   ```
    Call me at 555-123-4567
    Here's my email: test@example.com
    Text me on WhatsApp
@@ -331,6 +349,67 @@ const start = Date.now();
 const result = await moderateMessage("Test message");
 const duration = Date.now() - start;
 console.log(`Moderation took ${duration}ms`);
+```
+
+---
+
+## Automated Test Suite
+
+### Run Comprehensive Sexual Content Tests
+
+We've created an automated test suite that tests all 10 categories of sexual content detection:
+
+```bash
+# Make sure your dev server is running first
+npm run dev
+
+# In another terminal, run the test suite
+node scripts/test-sexual-content-moderation.js
+```
+
+This will test:
+- 70+ inappropriate messages across 10 categories
+- 10+ safe messages that should NOT be flagged
+- Accuracy, precision, and recall metrics
+- Color-coded results for easy review
+
+**Expected Output:**
+```
+=================================================================================
+Sexual Content Moderation Test Suite
+=================================================================================
+
+Testing 11 categories...
+
+1. Direct Sexual Requests
+--------------------------
+✓ 🚫 BLOCKED "Send me nudes."
+   Reasons: sexual-content
+✓ 🚫 BLOCKED "Can you send me a sexy picture?"
+   Reasons: sexual-content
+...
+
+Safe Messages (Should NOT be flagged)
+--------------------------------------
+✓ ✅ ALLOWED "Hello, I'd like to book a session for my child."
+✓ ✅ ALLOWED "What time works best for you?"
+...
+
+=================================================================================
+Test Summary
+=================================================================================
+
+Total Tests: 80
+Correct Blocks: 70
+Correct Allows: 10
+Incorrect Blocks (False Positives): 0
+Incorrect Allows (False Negatives): 0
+
+Accuracy: 100.00%
+Precision: 100.00%
+Recall: 100.00%
+
+✓ Excellent! Moderation system is working well.
 ```
 
 ---
