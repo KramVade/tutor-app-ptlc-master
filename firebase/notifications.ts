@@ -149,8 +149,18 @@ export function subscribeToNotifications(
 // Helper function to create booking notifications
 export async function createBookingNotification(
   userId: string,
-  type: 'new_booking' | 'booking_confirmed' | 'booking_cancelled',
-  bookingDetails: { tutorName?: string; parentName?: string; date: string; time: string }
+  type: 'new_booking' | 'booking_confirmed' | 'booking_cancelled' | 'booking_rescheduled' | 'session_completed',
+  bookingDetails: { 
+    tutorName?: string; 
+    parentName?: string; 
+    date: string; 
+    time: string;
+    oldDate?: string;
+    oldTime?: string;
+    newDate?: string;
+    newTime?: string;
+    reason?: string;
+  }
 ) {
   const messages = {
     new_booking: {
@@ -164,6 +174,14 @@ export async function createBookingNotification(
     booking_cancelled: {
       title: 'Booking Cancelled',
       message: `Your session on ${bookingDetails.date} at ${bookingDetails.time} has been cancelled`
+    },
+    booking_rescheduled: {
+      title: 'Session Rescheduled',
+      message: `${bookingDetails.tutorName} has rescheduled your session from ${bookingDetails.oldDate} at ${bookingDetails.oldTime} to ${bookingDetails.newDate} at ${bookingDetails.newTime}${bookingDetails.reason ? `. Reason: ${bookingDetails.reason}` : ''}`
+    },
+    session_completed: {
+      title: 'Session Completed',
+      message: `Your session with ${bookingDetails.tutorName} on ${bookingDetails.date} at ${bookingDetails.time} has been completed`
     }
   };
   

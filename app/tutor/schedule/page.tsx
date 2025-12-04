@@ -7,8 +7,10 @@ import { useNotification } from "@/lib/context/notification-context"
 import { PageLayout } from "@/components/layout/page-layout"
 import { AirbnbCard } from "@/components/ui/airbnb-card"
 import { AirbnbButton } from "@/components/ui/airbnb-button"
-import { Calendar, ChevronLeft, ChevronRight, Clock, User, BookOpen, X } from "lucide-react"
-import { getBookingsByTutorId, type Booking } from "@/firebase/bookings"
+import { Calendar, ChevronLeft, ChevronRight, Clock, User, BookOpen, X, CalendarClock, CheckCircle } from "lucide-react"
+import { getBookingsByTutorId, updateBookingStatus, type Booking } from "@/firebase/bookings"
+import { getTutorById } from "@/firebase/tutors"
+import { RescheduleModal } from "@/components/booking/reschedule-modal"
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns"
 
 // Disable static generation for this page
@@ -22,6 +24,8 @@ export default function TutorSchedulePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [tutorAvailability, setTutorAvailability] = useState<Record<string, string[]>>({})
+  const [selectedBookingForReschedule, setSelectedBookingForReschedule] = useState<Booking | null>(null)
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "tutor")) {
@@ -32,6 +36,7 @@ export default function TutorSchedulePage() {
   useEffect(() => {
     if (user?.role === "tutor") {
       loadBookings()
+      loadTutorData()
     }
   }, [user])
 
@@ -53,6 +58,19 @@ export default function TutorSchedulePage() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const loadTutorData = async () => {
+    if (!user) return
+    
+    try {
+      const tutorData = await getTutorById(user.id)
+      if (tutorData && 'availability' in tutorData) {
+        setTutorAvailability(tutorData.availability as Record<string, string[]>)
+      }
+    } catch (error) {
+      console.error("Error loading tutor data:", error)
     }
   }
 
@@ -98,6 +116,29 @@ export default function TutorSchedulePage() {
 
   const closeModal = () => {
     setSelectedDate(null)
+  }
+
+  const handleMarkComplete = async (booking: Booking) => {
+    if (!booking.id) return
+    
+    try {
+      await updateBookingStatus(booking.id, "completed")
+      showToast({
+        type: "success",
+        title: "Session Completed",
+        message: `Session with ${booking.childName} has been marked as completed.`,
+      })
+      // Reload bookings
+      await loadBookings()
+      setSelectedDate(null)
+    } catch (error) {
+      console.error("Error completing booking:", error)
+      showToast({
+        type: "error",
+        title: "Error",
+        message: "Failed to mark session as completed",
+      })
+    }
   }
 
   const selectedDateBookings = selectedDate ? getBookingsForDay(selectedDate) : []
@@ -287,7 +328,7 @@ export default function TutorSchedulePage() {
                         </div>
                       )}
 
-                      {/* Status Badge */}
+                      {/* Status Badge and Actions */}
                       <div className="flex items-center justify-between pt-4 border-t border-border">
                         <div>
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
@@ -303,12 +344,45 @@ export default function TutorSchedulePage() {
                           <p className="text-xl font-bold text-primary">₱{booking.totalPrice}</p>
                         </div>
                       </div>
+
+                      {/* Action Buttons */}
+                      {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                        <div className="mt-4 flex gap-3">
+                          {booking.status === 'confirmed' && (
+                            <AirbnbButton
+                              className="flex-1"
+                              onClick={() => handleMarkComplete(booking)}
+                              leftIcon={<CheckCircle className="h-4 w-4" />}
+                            >
+                              Mark Complete
+                            </AirbnbButton>
+                          )}
+                          <AirbnbButton
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => setSelectedBookingForReschedule(booking)}
+                            leftIcon={<CalendarClock className="h-4 w-4" />}
+                          >
+                            Reschedule
+                          </AirbnbButton>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
             </div>
           </div>
+        )}
+
+        {/* Reschedule Modal */}
+        {selectedBookingForReschedule && (
+          <RescheduleModal
+            isOpen={!!selectedBookingForReschedule}
+            onClose={() => setSelectedBookingForReschedule(null)}
+            booking={selectedBookingForReschedule}
+            tutorAvailability={tutorAvailability}
+          />
         )}
 
         {/* Legend */}

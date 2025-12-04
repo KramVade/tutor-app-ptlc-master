@@ -1,18 +1,21 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/context/auth-context"
-import { useData } from "@/lib/context/data-context"
 import { PageLayout } from "@/components/layout/page-layout"
 import { BookingCard } from "@/components/booking/booking-card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Clock, Calendar, CheckCircle } from "lucide-react"
+import { getBookingsByTutorId, type Booking } from "@/firebase/bookings"
+import { getTutorById } from "@/firebase/tutors"
 
 export default function TutorBookingsPage() {
   const { user, isLoading: authLoading } = useAuth()
-  const { bookings } = useData()
   const router = useRouter()
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [tutorAvailability, setTutorAvailability] = useState<Record<string, string[]>>({})
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "tutor")) {
@@ -20,7 +23,33 @@ export default function TutorBookingsPage() {
     }
   }, [user, authLoading, router])
 
-  if (authLoading || !user) {
+  useEffect(() => {
+    async function loadBookings() {
+      if (!user?.id) return
+      
+      try {
+        setIsLoading(true)
+        const tutorBookings = await getBookingsByTutorId(user.id)
+        setBookings(tutorBookings)
+        
+        // Load tutor availability for reschedule modal
+        const tutorData = await getTutorById(user.id)
+        if (tutorData && 'availability' in tutorData) {
+          setTutorAvailability(tutorData.availability as Record<string, string[]>)
+        }
+      } catch (error) {
+        console.error("Error loading bookings:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (user?.id) {
+      loadBookings()
+    }
+  }, [user?.id])
+
+  if (authLoading || isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
@@ -63,7 +92,12 @@ export default function TutorBookingsPage() {
             ) : (
               <div className="space-y-4">
                 {pendingBookings.map((booking) => (
-                  <BookingCard key={booking.id} booking={booking} role="tutor" />
+                  <BookingCard 
+                    key={booking.id} 
+                    booking={booking} 
+                    role="tutor" 
+                    tutorAvailability={tutorAvailability}
+                  />
                 ))}
               </div>
             )}
@@ -79,7 +113,12 @@ export default function TutorBookingsPage() {
             ) : (
               <div className="space-y-4">
                 {confirmedBookings.map((booking) => (
-                  <BookingCard key={booking.id} booking={booking} role="tutor" showActions={false} />
+                  <BookingCard 
+                    key={booking.id} 
+                    booking={booking} 
+                    role="tutor" 
+                    tutorAvailability={tutorAvailability}
+                  />
                 ))}
               </div>
             )}

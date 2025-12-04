@@ -1,13 +1,15 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { AirbnbCard } from "../ui/airbnb-card"
 import { AirbnbButton } from "../ui/airbnb-button"
 import { AirbnbModal } from "../ui/airbnb-modal"
 import { useNotification } from "@/lib/context/notification-context"
-import { Calendar, Clock, MessageCircle, X, Check, User, BookOpen } from "lucide-react"
+import { Calendar, Clock, MessageCircle, X, Check, User, BookOpen, CalendarClock, CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { updateBookingStatus } from "@/firebase/bookings"
+import { RescheduleModal } from "./reschedule-modal"
 
 interface BookingCardProps {
   booking: {
@@ -29,11 +31,15 @@ interface BookingCardProps {
   }
   showActions?: boolean
   role?: "parent" | "tutor"
+  tutorAvailability?: Record<string, string[]>
 }
 
-export function BookingCard({ booking, showActions = true, role = "parent" }: BookingCardProps) {
+export function BookingCard({ booking, showActions = true, role = "parent", tutorAvailability }: BookingCardProps) {
   const { showToast } = useNotification()
+  const router = useRouter()
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false)
+  const [showCompleteModal, setShowCompleteModal] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const statusColors = {
@@ -119,6 +125,41 @@ export function BookingCard({ booking, showActions = true, role = "parent" }: Bo
     }
   }
 
+  const handleComplete = async () => {
+    if (!booking.id) return
+    
+    try {
+      setIsLoading(true)
+      await updateBookingStatus(booking.id, "completed")
+      setShowCompleteModal(false)
+      showToast({
+        type: "success",
+        title: "Session Completed",
+        message: "The session has been marked as completed.",
+      })
+      // Reload page to refresh data
+      window.location.reload()
+    } catch (error) {
+      console.error("Error completing booking:", error)
+      showToast({
+        type: "error",
+        title: "Error",
+        message: "Failed to mark session as completed",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleMessage = () => {
+    // Navigate to messages page
+    if (role === "parent") {
+      router.push("/parent/messages")
+    } else if (role === "tutor") {
+      router.push("/tutor/messages")
+    }
+  }
+
   return (
     <>
       <AirbnbCard className="relative">
@@ -175,7 +216,12 @@ export function BookingCard({ booking, showActions = true, role = "parent" }: Bo
               <div className="flex items-center gap-2 mt-4">
                 {role === "parent" && (
                   <>
-                    <AirbnbButton variant="outline" size="sm" leftIcon={<MessageCircle className="h-4 w-4" />}>
+                    <AirbnbButton 
+                      variant="outline" 
+                      size="sm" 
+                      leftIcon={<MessageCircle className="h-4 w-4" />}
+                      onClick={handleMessage}
+                    >
                       Message
                     </AirbnbButton>
                     {booking.status === "pending" && (
@@ -190,23 +236,54 @@ export function BookingCard({ booking, showActions = true, role = "parent" }: Bo
                     )}
                   </>
                 )}
-                {role === "tutor" && booking.status === "pending" && (
+                {role === "tutor" && (
                   <>
-                    <AirbnbButton
-                      size="sm"
-                      onClick={handleApprove}
-                      isLoading={isLoading}
-                      leftIcon={<Check className="h-4 w-4" />}
+                    {booking.status === "pending" && (
+                      <>
+                        <AirbnbButton
+                          size="sm"
+                          onClick={handleApprove}
+                          isLoading={isLoading}
+                          leftIcon={<Check className="h-4 w-4" />}
+                        >
+                          Approve
+                        </AirbnbButton>
+                        <AirbnbButton
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDecline}
+                          leftIcon={<X className="h-4 w-4" />}
+                        >
+                          Decline
+                        </AirbnbButton>
+                      </>
+                    )}
+                    {booking.status === "confirmed" && (
+                      <AirbnbButton
+                        size="sm"
+                        onClick={() => setShowCompleteModal(true)}
+                        leftIcon={<CheckCircle className="h-4 w-4" />}
+                      >
+                        Mark Complete
+                      </AirbnbButton>
+                    )}
+                    {(booking.status === "pending" || booking.status === "confirmed") && (
+                      <AirbnbButton
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowRescheduleModal(true)}
+                        leftIcon={<CalendarClock className="h-4 w-4" />}
+                      >
+                        Reschedule
+                      </AirbnbButton>
+                    )}
+                    <AirbnbButton 
+                      variant="outline" 
+                      size="sm" 
+                      leftIcon={<MessageCircle className="h-4 w-4" />}
+                      onClick={handleMessage}
                     >
-                      Approve
-                    </AirbnbButton>
-                    <AirbnbButton
-                      variant="outline"
-                      size="sm"
-                      onClick={handleDecline}
-                      leftIcon={<X className="h-4 w-4" />}
-                    >
-                      Decline
+                      Message
                     </AirbnbButton>
                   </>
                 )}
@@ -236,6 +313,47 @@ export function BookingCard({ booking, showActions = true, role = "parent" }: Bo
           </div>
         </div>
       </AirbnbModal>
+
+      {/* Complete Modal */}
+      <AirbnbModal isOpen={showCompleteModal} onClose={() => setShowCompleteModal(false)} title="Mark Session as Completed" size="sm">
+        <div className="p-6">
+          <p className="text-muted-foreground mb-4">
+            Are you sure you want to mark this session as completed?
+          </p>
+          <div className="bg-secondary rounded-lg p-4 mb-6">
+            <p className="text-sm mb-2">
+              <span className="text-muted-foreground">Student:</span> <span className="font-medium">{booking.childName}</span>
+            </p>
+            <p className="text-sm mb-2">
+              <span className="text-muted-foreground">Subject:</span> <span className="font-medium">{booking.subject}</span>
+            </p>
+            <p className="text-sm">
+              <span className="text-muted-foreground">Date:</span> <span className="font-medium">{new Date(booking.date).toLocaleDateString()} at {booking.time}</span>
+            </p>
+          </div>
+          <p className="text-sm text-muted-foreground mb-6">
+            This will trigger payment processing and notify the parent.
+          </p>
+          <div className="flex gap-3">
+            <AirbnbButton variant="outline" className="flex-1" onClick={() => setShowCompleteModal(false)}>
+              Cancel
+            </AirbnbButton>
+            <AirbnbButton className="flex-1" onClick={handleComplete} isLoading={isLoading}>
+              Mark Complete
+            </AirbnbButton>
+          </div>
+        </div>
+      </AirbnbModal>
+
+      {/* Reschedule Modal */}
+      {showRescheduleModal && (
+        <RescheduleModal
+          isOpen={showRescheduleModal}
+          onClose={() => setShowRescheduleModal(false)}
+          booking={booking}
+          tutorAvailability={tutorAvailability}
+        />
+      )}
     </>
   )
 }

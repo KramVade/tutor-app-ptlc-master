@@ -295,6 +295,54 @@ export async function updateBookingStatus(bookingId: string, status: Booking['st
   }
 }
 
+export async function rescheduleBooking(
+  bookingId: string, 
+  newDate: string, 
+  newTime: string,
+  reason?: string
+) {
+  try {
+    const bookingRef = doc(db, BOOKINGS_COLLECTION, bookingId);
+    const bookingSnap = await getDoc(bookingRef);
+    
+    if (!bookingSnap.exists()) {
+      throw new Error('Booking not found');
+    }
+    
+    const booking = bookingSnap.data() as Booking;
+    
+    await updateDoc(bookingRef, {
+      date: newDate,
+      time: newTime,
+      updatedAt: new Date().toISOString()
+    });
+    
+    // Create notification for parent about reschedule
+    try {
+      const { createBookingNotification } = await import('./notifications');
+      await createBookingNotification(
+        booking.parentId,
+        'booking_rescheduled',
+        {
+          tutorName: booking.tutorName,
+          oldDate: booking.date,
+          oldTime: booking.time,
+          newDate,
+          newTime,
+          reason: reason || 'No reason provided'
+        }
+      );
+    } catch (notifError) {
+      console.error('Error creating reschedule notification:', notifError);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error rescheduling booking:', error);
+    throw error;
+  }
+}
+
 export async function deleteBooking(bookingId: string) {
   try {
     const bookingRef = doc(db, BOOKINGS_COLLECTION, bookingId);
